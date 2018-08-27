@@ -19,7 +19,7 @@ from options_sat_mod_ak import get_options, check_options_valid, opts,replaceYYY
 
 
 class val_record:
-    """A class for accumulating 2D data of a parameter over a period"""
+    """A class for accumulating data of a parameter over a period"""
     
     def __init__(self,name,unit=""):
         self.name = name
@@ -255,7 +255,7 @@ def make_dict(option):
     
     return(this_dict)
 
-def read_sat_to_dict(accum_dict,var,sat_data_dict,this_date,all_lat,all_lon,domain):
+def read_sat_to_dict(accum_dict,var,sat_data_dict,this_date,all_lat,all_lon,domain,do_3D=False):
     """Reads a variable from the satellite file and writes it, cut to domain, to accum_dict"""
         
     temp_dict = accum_dict
@@ -273,7 +273,7 @@ def read_sat_to_dict(accum_dict,var,sat_data_dict,this_date,all_lat,all_lon,doma
     elif var == "prior":
         temp_dict[var].data.append(
                                cut_to_domain(
-                                get_av_from_sat(sat_data_dict[var],isprior=True),
+                                get_av_from_sat(sat_data_dict[var],isprior=True,do_3D=do_3D),
                                 all_lat,all_lon,
                                 domain
                                 )
@@ -282,7 +282,7 @@ def read_sat_to_dict(accum_dict,var,sat_data_dict,this_date,all_lat,all_lon,doma
     else:
         temp_dict[var].data.append(
                                cut_to_domain(
-                                get_av_from_sat(sat_data_dict[var]),
+                                get_av_from_sat(sat_data_dict[var],do_3D=do_3D),
                                 all_lat,all_lon,
                                 domain
                                 )
@@ -291,12 +291,10 @@ def read_sat_to_dict(accum_dict,var,sat_data_dict,this_date,all_lat,all_lon,doma
     return(temp_dict) 
             
 
-def get_av_from_sat(RAL_input,DU_conv=True,isprior=False):
+def get_av_from_sat(RAL_input,DU_conv=True,isprior=False,do_3D=False):
     """Return the average gridded values from RAL-format data"""
-    if isprior: #prior uses index 0, not 1
-        lev_idx = 0
-    else:
-        lev_idx = 1
+    
+
     
     if DU_conv:
         #if True, convert from DU to molec cm-2
@@ -304,7 +302,25 @@ def get_av_from_sat(RAL_input,DU_conv=True,isprior=False):
     else:
         conv = 1.
     
-    av_col = np.divide(np.array(RAL_input[0][lev_idx].T1),np.array(RAL_input[0][lev_idx].N))*conv
+    if do_3D: #3D, read each layer individually
+                
+        if isprior: #For non-prior fields, level 0 is full column and shoul be skipped
+            first_idx = 0
+        else:
+            first_idx = 1        
+        
+        av_col = np.zeros((len(RAL_input[0])-first_idx,len(RAL_input[0][0].T1),len(RAL_input[0][0].T1[0])))
+        
+        for k in range(first_idx,len(RAL_input[0])): #level 0 is whole column, skip it
+            av_col[k-1] = np.divide(np.array(RAL_input[0][k].T1),np.array(RAL_input[0][k].N))*conv
+    else: #2D  
+        if isprior: #prior uses index 0, not 1
+            lev_idx = 0
+        else:
+            lev_idx = 1
+          
+        av_col = np.divide(np.array(RAL_input[0][lev_idx].T1),np.array(RAL_input[0][lev_idx].N))*conv
+    
     av_col[av_col == 0.] = np.nan #mark non-detections as np.nan
     
     return av_col
@@ -384,6 +400,71 @@ def pressure_cutoff(amount,pressure,cutoff=450.,commentary=""):
             output[i,j] = float(log_interp_sum_to_level(pres_col,amount_col,cutoff))
     
     return(output)
+
+def simple_fixed_regrid_19_10(inp):
+    """Bodge function to regrid from 19 layers to 10"""
+    
+    in_shp = np.array(inp).shape
+    
+    output = np.zeros((in_shp[0],9,in_shp[2],in_shp[3]))
+    
+    for t in range(in_shp[0]):
+        
+        output[t][0] = inp[t][0]
+        output[t][1] = inp[t][1]
+        output[t][2] = np.add(inp[t][2],inp[t][3])
+        output[t][3] = np.add(inp[t][4],inp[t][5])
+        output[t][4] = np.add(inp[t][6],inp[t][7])
+        output[t][5] = np.add(inp[t][8],inp[t][9])
+        output[t][6] = np.add(inp[t][10],inp[t][11])
+        output[t][7] = np.add(inp[t][12],inp[t][13])
+        output[t][8] = np.add(inp[t][14],np.add(inp[t][15],np.add(inp[t][16],np.add(inp[t][17],inp[t][18]))))
+    
+    return(output)
+
+    
+def pressure_slicer(amount,pressure,levels=[
+         1.00000000e+03,    
+                           4.50000000e+02,   
+         1.70000015e+02,   1.00000000e+02,   4.99999962e+01,
+         2.99999981e+01,   2.00000019e+01,   1.00000000e+01,
+         5.00000095e+00,   3.00000072e+00,   1.99999964e+00,
+         1.00000000e+00,   5.00000060e-01,   3.00000072e-01,
+         1.70000017e-01,   1.00000001e-01,   4.99999821e-02,
+         3.00000068e-02,   1.69999916e-02,   9.99999978e-03]
+                                           ,commentary=""):
+                                           
+    """Determines the amount of substance within different layers of the atmosphere, using interpolation where needed"""
+    #amount : 3D grid of amount of substance (vertical, lat, lon)
+    #pressure : 3D grid of pressure at the *bottom* of each box (vertical, lat, lon)
+    #levels : fixed pressure levels to report results on (output[0] will be between levels[0] and [1] etc.) 
+    #commentary : set to any string to get a printout when this command is running (useful for diagnostic)
+    
+    #diagnostic
+    if commentary != "":
+        print("%s - Calculating on pressure levels"%commentary)
+    
+    #work out shape of array
+    (num_levels,num_lats,num_lons) = amount.shape
+          
+    #prepare output grid
+    cumulative = np.zeros((num_lats,num_lons,len(levels)))
+    output = np.zeros((len(levels),num_lats,num_lons))
+    
+    
+    for i in range(num_lats):
+        for j in range(num_lons):
+            pres_col = pressure[:,i,j] #get 1D array of pressures at this i,j point
+            amount_col = amount[:,i,j] #get 1D array of amounts at this i,j point
+            #for each i,j point, get the sum up to this level (linearlt interpolating using log pressures)
+            cumulative[i][j] = log_interp_sum_to_level(pres_col,amount_col,levels)
+            for k in range(len(levels)):
+                if k == 0:
+                    output[k][i][j] = cumulative[i][j][k]
+                else:
+                    output[k][i][j] = cumulative[i][j][k] - cumulative[i][j][k-1]
+    
+    return(output)    
 
 def log_average(a,b):
     """returns logatithmic average of two numbers"""
@@ -606,6 +687,9 @@ if option.geos_species != []:
 else:
     use_mod_data = False
 
+#define output levels #this should be in options, but its here for now.
+out_levs = [450.,170.,50.,20.,5.,2.,0.5,0.17,0.001]
+
 #create dictionary for holding results.
 
 result_dict = make_dict(option)
@@ -656,13 +740,13 @@ while this_date <= option.end_date:
         
         
         if option.do_gsc: #OMI ozone
-            accum_dict = read_sat_to_dict(accum_dict,"GSC",sat_data_dict,this_date,all_lat,all_lon,option.domain)      
+            accum_dict = read_sat_to_dict(accum_dict,"GSC",sat_data_dict,this_date,all_lat,all_lon,option.domain,do_3D=option.do_3D)      
         if option.do_MACC: #MACC ozone
-            accum_dict = read_sat_to_dict(accum_dict,"MACC",sat_data_dict,this_date,all_lat,all_lon,option.domain)
+            accum_dict = read_sat_to_dict(accum_dict,"MACC",sat_data_dict,this_date,all_lat,all_lon,option.domain,do_3D=option.do_3D)
         if option.do_MACC_wAK: #MACC ozone with averaging kernals
-            accum_dict = read_sat_to_dict(accum_dict,"MACC_wAK",sat_data_dict,this_date,all_lat,all_lon,option.domain)
+            accum_dict = read_sat_to_dict(accum_dict,"MACC_wAK",sat_data_dict,this_date,all_lat,all_lon,option.domain,do_3D=option.do_3D)
         if option.do_prior or option.do_geos_o3_wAK: #prior
-            accum_dict = read_sat_to_dict(accum_dict,"prior",sat_data_dict,this_date,all_lat,all_lon,option.domain)
+            accum_dict = read_sat_to_dict(accum_dict,"prior",sat_data_dict,this_date,all_lat,all_lon,option.domain,do_3D=option.do_3D)
         if option.do_geos_o3_wAK: #averaging kernals
             accum_dict = read_sat_to_dict(accum_dict,"AK",sat_data_dict,this_date,all_lat,all_lon,option.domain)
         
@@ -708,10 +792,15 @@ while this_date <= option.end_date:
             if spc == "O3" and option.do_geos_o3_wAK:
                 o3_full_profile.append(spc_molec_per_cm2)
                 pressure_bot_full_profile.append(pressure_bot)
-                           
-            spc_tropospheric = pressure_cutoff(spc_molec_per_cm2,pressure_bot) #get amount in troposphere
+            
             accum_dict[spc].datelist.append(this_date) #add date for this variable
-            accum_dict[spc].data.append(spc_tropospheric) #add to dictionary
+            if option.do_3D: #3D layers for species
+                amount_in_level = pressure_slicer(spc_molec_per_cm2,pressure_bot,levels=out_levs)
+                accum_dict[spc].data.append(amount_in_level) #add to dictionary
+            else: #just surface-450hPa                             
+                spc_tropospheric = pressure_cutoff(spc_molec_per_cm2,pressure_bot) #get amount in troposphere
+                accum_dict[spc].data.append(spc_tropospheric) #add to dictionary
+            
             #ground_level
             spc_gl_ppb   = spc_mixratio[0] #species mixing ratio at ground level
             accum_dict[spc+"_GL"].datelist.append(this_date) #add date for this variable
@@ -736,9 +825,15 @@ while this_date <= option.end_date:
             AK_time_index = accum_dict["AK"].datelist.index(this_date)
             GC_time_index = accum_dict["O3"].datelist.index(this_date)
             
-            o3_wAK_noprior = apply_AKs_grid(o3_full_profile[GC_time_index],
-                                            accum_dict["AK"].data[AK_time_index],
-                                            pressure_bot_full_profile[GC_time_index])[0]
+            if option.do_3D:
+                o3_wAK_noprior = apply_AKs_grid(o3_full_profile[GC_time_index],
+                                                accum_dict["AK"].data[AK_time_index],
+                                                pressure_bot_full_profile[GC_time_index])
+            else:
+                o3_wAK_noprior = apply_AKs_grid(o3_full_profile[GC_time_index],
+                                                accum_dict["AK"].data[AK_time_index],
+                                                pressure_bot_full_profile[GC_time_index])[0]  #only lowest layer             
+            
             accum_dict["GC_O3_wAK"].datelist.append(this_date)
             accum_dict["GC_O3_wAK"].data.append(o3_wAK_noprior)
             
@@ -757,9 +852,14 @@ while this_date <= option.end_date:
             start_month_date = this_date.replace(day=1)
             AK_time_index = accum_dict["AK"].datelist.index(start_month_date)
             
-            o3_wAK_noprior = apply_AKs_grid(o3_full_profile_month_average,
-                                              accum_dict["AK"].data[AK_time_index],
-                                              pressure_bot_full_profile_month_average)[0]               
+            if option.do_3D:
+                o3_wAK_noprior = apply_AKs_grid(o3_full_profile_month_average,
+                                                  accum_dict["AK"].data[AK_time_index],
+                                                  pressure_bot_full_profile_month_average)
+            else:
+                o3_wAK_noprior = apply_AKs_grid(o3_full_profile_month_average,
+                                                  accum_dict["AK"].data[AK_time_index],
+                                                  pressure_bot_full_profile_month_averae)[0]  #only lowest layer                            
             
             accum_dict["GC_O3_wAK"].datelist.append(this_date)
             accum_dict["GC_O3_wAK"].data.append(o3_wAK_noprior)
@@ -806,11 +906,11 @@ if option.do_geos_o3_wAK: #add in priors
     result_dict["GC_O3_wAK_wprior"].datelist = result_dict["GC_O3_wAK"].datelist
     result_dict["GC_O3_wAK_wprior"].data = np.add(result_dict["GC_O3_wAK"].data,result_dict["prior"].data)
     
-    result_dict["GC_O3_wAK_SUBprior"] = val_record("GEOS O3 with OMI AKs SUB prior","molec cm-2")
-    result_dict["GC_O3_wAK_SUBprior"].datelist = result_dict["GC_O3_wAK"].datelist
-    result_dict["GC_O3_wAK_SUBprior"].data = np.subtract(result_dict["GC_O3_wAK"].data,result_dict["prior"].data)
+    #result_dict["GC_O3_wAK_SUBprior"] = val_record("GEOS O3 with OMI AKs SUB prior","molec cm-2")
+    #result_dict["GC_O3_wAK_SUBprior"].datelist = result_dict["GC_O3_wAK"].datelist
+    #result_dict["GC_O3_wAK_SUBprior"].data = np.subtract(result_dict["GC_O3_wAK"].data,result_dict["prior"].data)
 
-if option.do_gsc: #do bias correction
+if option.do_gsc and not option.do_3D: #do bias correction
     print("doing bias correction")
     result_dict["GSC_wbiascorr"] = val_record("OMI O3 with bias correction","molec cm-2")
     result_dict["GSC_wbiascorr"].datelist = result_dict["GSC"].datelist
@@ -820,6 +920,9 @@ if option.do_gsc: #do bias correction
     #print result_dict["GSC"].data
     result_dict["GSC_wbiascorr"].data = unbiased_data
     #print result_dict["GSC_wbiascorr"].data
+    
+if option.do_gsc and option.do_3D:
+    print("Bias correction not done with 3D GSC output")
 
 #once we're done, write to a netcdf file
 #prepare NETCDF file
@@ -840,6 +943,10 @@ latitudes     = dataset.createVariable('lat', np.float32, ('lat',))
 latitudes[:]  = lat_for_nc_np
 longitudes    = dataset.createVariable('lon', np.float32, ('lon',))
 longitudes[:] = lon_for_nc_np
+if option.do_3D:
+    netcdf_lev    = dataset.createDimension('lev', len(out_levs))
+    levels        = dataset.createVariable('lev', np.int32, ('lev',))
+    levels[:]     = range(0,len(out_levs)) #integer references
 
 #Time dimension (unlimited)
 netcdf_time = dataset.createDimension('time', None)
@@ -861,9 +968,17 @@ for key in result_dict:
     
     #create dataset
     print(key)
-    nc_var = dataset.createVariable(result_dict[key].name, np.float32, ('time','lat','lon'))
-    nc_var.units = result_dict[key].unit
-    nc_var[:,:,:] = result_dict[key].data
+    if len(np.array(result_dict[key].data).shape) == 4: #if its a 3D variable
+        nc_var = dataset.createVariable(result_dict[key].name, np.float32, ('time','lev','lat','lon'))
+        nc_var.units = result_dict[key].unit
+        if len(result_dict[key].data[0])==19:
+            nc_var[:,:,:,:] = simple_fixed_regrid_19_10(result_dict[key].data) #regrid if on 19 layers
+        else:
+            nc_var[:,:,:,:] = result_dict[key].data    
+    else: #if its a 2D variable
+        nc_var = dataset.createVariable(result_dict[key].name, np.float32, ('time','lat','lon'))
+        nc_var.units = result_dict[key].unit
+        nc_var[:,:,:] = result_dict[key].data
         
 
 

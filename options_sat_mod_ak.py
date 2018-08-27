@@ -28,6 +28,7 @@ class opts:
            do_gsc,do_MACC,do_MACC_wAK,do_prior,
            geos_species,
            do_geos_nox,do_geos_o3_wAK,
+           do_3D,
            mod_data_path,sat_data_path,
            sav_pre
            ):
@@ -43,6 +44,7 @@ class opts:
         self.geos_species    = geos_species
         self.do_geos_nox     = do_geos_nox
         self.do_geos_o3_wAK  = do_geos_o3_wAK
+        self.do_3D           = do_3D
         self.mod_data_path   = mod_data_path
         self.sat_data_path   = sat_data_path
         self.sav_pre         = sav_pre
@@ -52,8 +54,8 @@ def get_options():
     print "Reading options from options_sat_mod_ak.py"
     #==Date and time==
 
-    start_date = dt(2014, 1,   1) #first date          :: (YYYY,MM,DD)
-    end_date   = dt(2014, 12,   30) #end date (inclusive):: (YYYY,MM,DD)
+    start_date = dt(2014, 6,   1) #first date          :: (YYYY,MM,DD)
+    end_date   = dt(2014, 6,   30) #end date (inclusive):: (YYYY,MM,DD)
 
     #==Output options==
     cycle_type = "all"         #Time resolution of output. Options are:
@@ -86,19 +88,22 @@ def get_options():
                     ]                 
     
     
+    
     #special species
     do_geos_nox = True           #Output "pure" GEOS-Chem tropospheric NOx (sum of NO and NO2)
     do_geos_o3_wAK = True       #Apply satellite AKs to GEOS-Chem O3                
-
+    
+    #do 3D - whether to return 3D fields of model output and satellite retrieval
+    do_3D = True
                             
     #==Data locations==
     #YYYYMMMDD, YYYYMM and YYYYY will be replaced in model processing 
     #Path of model data
-    mod_data_path = "/geos/d21/lsurl/geos11_runs/geosfp_025x03125_tropchem_ch/ts_omi.YYYYMMDD.bpch"
+    mod_data_path = "/geos/d21/lsurl/geos11_runs/geosfp_025x03125_tropchem_ch/ND51/ts_omi.YYYYMMDD.bpch"
     if sat_time_res == "m":
         #Path of MONTHLY satellite data
-        #sat_data_path = '/geos/d21/downloaded_sat_data/ozone_omi_fv0214/monthly_lag-90_90_2.5_log-180_180_2.5/YYYY/o3p_bin_vs_model_YYYYMMXX_MACC_mcef0.2_sza80_mcost120_mcb1_lzr_omfra_ak.str' #OLD
-        sat_data_path = '/geos/d21/downloaded_sat_data/ozone_omi_fv0214/monthly_lag-10_40_0.5_log65_130_0.5/YYYY/o3p_bvm_YYYYMMXX_omi_MACC_mcef0.2_sza80_mcost120_lzr_ak.str' #NEW
+        sat_data_path = '/geos/d21/downloaded_sat_data/ozone_omi_fv0214/monthly_lag-90_90_2.5_log-180_180_2.5/YYYY/o3p_bin_vs_model_YYYYMMXX_MACC_mcef0.2_sza80_mcost120_mcb1_lzr_omfra_ak.str' #OLD
+        #sat_data_path = '/geos/d21/downloaded_sat_data/ozone_omi_fv0214/monthly_lag-10_40_0.5_log65_130_0.5/YYYY/o3p_bvm_YYYYMMXX_omi_MACC_mcef0.2_sza80_mcost120_lzr_ak.str' #NEW
     elif sat_time_res =="d":
         #Path of DAILY satellite data
         #sat_data_path = '/geos/d21/downloaded_sat_data/ozone_omi_fv0214/daily_lag-90_90_2.5_log-180_180_2.5/YYYYMM/o3p_bin_vs_model_YYYYMMDD_MACC_mcef0.2_sza80_mcost120_mcb1_lzr_omfra_ak.str' #OLD
@@ -106,7 +111,7 @@ def get_options():
     
     #==save location, and file prefic==
     
-    sav_pre = "/geos/u28/scripts/GEOS-Chem_columns/alt_monthly_new/NEW_m" #add nc file prefix. Add path if not wanting to save in working directory. The rest of the filename will be the date span (from start_date to end_date)
+    sav_pre = "/geos/u28/scripts/GEOS-Chem_columns/3Dtest_m" #add nc file prefix. Add path if not wanting to save in working directory. The rest of the filename will be the date span (from start_date to end_date)
     
                                 
     return(
@@ -117,6 +122,7 @@ def get_options():
            do_gsc,do_MACC,do_MACC_wAK,do_prior,
            geos_species,
            do_geos_nox,do_geos_o3_wAK,
+           do_3D,
            mod_data_path,sat_data_path,
            sav_pre
            )
@@ -132,6 +138,7 @@ def check_options_valid(options):
     do_gsc,do_MACC,do_MACC_wAK,do_prior,
     geos_species,
     do_geos_nox,do_geos_o3_wAK,
+    do_3D,
     mod_data_path,sat_data_path,
     sav_pre
     ) = (
@@ -142,6 +149,7 @@ def check_options_valid(options):
     options.do_gsc,options.do_MACC,options.do_MACC_wAK,options.do_prior,
     options.geos_species,
     options.do_geos_nox,options.do_geos_o3_wAK,
+    options.do_3D,
     options.mod_data_path,options.sat_data_path,
     options.sav_pre
     )
