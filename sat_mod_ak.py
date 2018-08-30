@@ -951,7 +951,7 @@ while this_date <= option.end_date:
             else:
                 o3_wAK_noprior = apply_AKs_grid(o3_full_profile_month_average,
                                                   accum_dict["AK"].data[AK_time_index],
-                                                  pressure_bot_full_profile_month_averae)[0]  #only lowest layer                            
+                                                  pressure_bot_full_profile_month_average)[0]  #only lowest layer                            
             
             accum_dict["GC_O3_wAK"].datelist.append(this_date)
             accum_dict["GC_O3_wAK"].data.append(o3_wAK_noprior)

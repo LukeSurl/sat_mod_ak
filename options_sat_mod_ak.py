@@ -57,11 +57,11 @@ def get_options():
     print "Reading options from options_sat_mod_ak.py"
     #==Date and time==
 
-    start_date = dt(2014, 6,   1) #first date          :: (YYYY,MM,DD)
-    end_date   = dt(2014, 6,   1) #end date (inclusive):: (YYYY,MM,DD)
+    start_date = dt(2014, 1,   1) #first date          :: (YYYY,MM,DD)
+    end_date   = dt(2014, 12,  30) #end date (inclusive):: (YYYY,MM,DD)
 
     #==Output options==
-    cycle_type = "day"         #Time resolution of output. Options are:
+    cycle_type = "all"         #Time resolution of output. Options are:
                                #"all"   -> take average of all data between start_date and end_date
                                #"season"-> take averages for seasons, JFM AMJ JAS OND
                                #"month" -> take averages for indvididual months
@@ -71,7 +71,7 @@ def get_options():
     domain = [2.,38.,65.,100]  #Spatial span of output. In format [south, north, west, east] degrees 
 
     #satellite options
-    sat_time_res = "d"         #Temporal resolution of satellite file input.
+    sat_time_res = "m"         #Temporal resolution of satellite file input.
                                #options are "m"=monthly, and "d"=daily
     do_gsc = True              #main retrived o3 column
     do_MACC= True              #Output from the MACC model
@@ -92,7 +92,7 @@ def get_options():
     
     
     #production-loss
-    do_prodloss = True
+    do_prodloss = False
     prodloss_path = '/geos/d21/lsurl/geos11_runs/geosfp_025x03125_tropchem_ch/rate.YYYYMMDD'
     
     #special species
@@ -117,7 +117,7 @@ def get_options():
     
     #==save location, and file prefic==
     
-    sav_pre = "/geos/u28/scripts/GEOS-Chem_columns/PLtest_2D_" #add nc file prefix. Add path if not wanting to save in working directory. The rest of the filename will be the date span (from start_date to end_date)
+    sav_pre = "/geos/u28/scripts/GEOS-Chem_columns/Main_badsat_2D" #add nc file prefix. Add path if not wanting to save in working directory. The rest of the filename will be the date span (from start_date to end_date)
     
                                 
     return(
