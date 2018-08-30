@@ -27,6 +27,7 @@ class opts:
            sat_time_res,
            do_gsc,do_MACC,do_MACC_wAK,do_prior,
            geos_species,
+           do_prodloss,prodloss_path,
            do_geos_nox,do_geos_o3_wAK,
            do_3D,
            mod_data_path,sat_data_path,
@@ -42,6 +43,8 @@ class opts:
         self.do_MACC_wAK     = do_MACC_wAK
         self.do_prior        = do_prior
         self.geos_species    = geos_species
+        self.do_prodloss     = do_prodloss
+        self.prodloss_path   = prodloss_path
         self.do_geos_nox     = do_geos_nox
         self.do_geos_o3_wAK  = do_geos_o3_wAK
         self.do_3D           = do_3D
@@ -55,10 +58,10 @@ def get_options():
     #==Date and time==
 
     start_date = dt(2014, 6,   1) #first date          :: (YYYY,MM,DD)
-    end_date   = dt(2014, 6,   30) #end date (inclusive):: (YYYY,MM,DD)
+    end_date   = dt(2014, 6,   1) #end date (inclusive):: (YYYY,MM,DD)
 
     #==Output options==
-    cycle_type = "all"         #Time resolution of output. Options are:
+    cycle_type = "day"         #Time resolution of output. Options are:
                                #"all"   -> take average of all data between start_date and end_date
                                #"season"-> take averages for seasons, JFM AMJ JAS OND
                                #"month" -> take averages for indvididual months
@@ -68,7 +71,7 @@ def get_options():
     domain = [2.,38.,65.,100]  #Spatial span of output. In format [south, north, west, east] degrees 
 
     #satellite options
-    sat_time_res = "m"         #Temporal resolution of satellite file input.
+    sat_time_res = "d"         #Temporal resolution of satellite file input.
                                #options are "m"=monthly, and "d"=daily
     do_gsc = True              #main retrived o3 column
     do_MACC= True              #Output from the MACC model
@@ -88,13 +91,16 @@ def get_options():
                     ]                 
     
     
+    #production-loss
+    do_prodloss = True
+    prodloss_path = '/geos/d21/lsurl/geos11_runs/geosfp_025x03125_tropchem_ch/rate.YYYYMMDD'
     
     #special species
     do_geos_nox = True           #Output "pure" GEOS-Chem tropospheric NOx (sum of NO and NO2)
     do_geos_o3_wAK = True       #Apply satellite AKs to GEOS-Chem O3                
     
     #do 3D - whether to return 3D fields of model output and satellite retrieval
-    do_3D = True
+    do_3D = False
                             
     #==Data locations==
     #YYYYMMMDD, YYYYMM and YYYYY will be replaced in model processing 
@@ -111,7 +117,7 @@ def get_options():
     
     #==save location, and file prefic==
     
-    sav_pre = "/geos/u28/scripts/GEOS-Chem_columns/3Dtest_m" #add nc file prefix. Add path if not wanting to save in working directory. The rest of the filename will be the date span (from start_date to end_date)
+    sav_pre = "/geos/u28/scripts/GEOS-Chem_columns/PLtest_2D_" #add nc file prefix. Add path if not wanting to save in working directory. The rest of the filename will be the date span (from start_date to end_date)
     
                                 
     return(
@@ -121,6 +127,7 @@ def get_options():
            sat_time_res,
            do_gsc,do_MACC,do_MACC_wAK,do_prior,
            geos_species,
+           do_prodloss,prodloss_path,
            do_geos_nox,do_geos_o3_wAK,
            do_3D,
            mod_data_path,sat_data_path,
@@ -137,6 +144,7 @@ def check_options_valid(options):
     sat_time_res,
     do_gsc,do_MACC,do_MACC_wAK,do_prior,
     geos_species,
+    do_prodloss,prodloss_path,
     do_geos_nox,do_geos_o3_wAK,
     do_3D,
     mod_data_path,sat_data_path,
@@ -148,6 +156,7 @@ def check_options_valid(options):
     options.sat_time_res,
     options.do_gsc,options.do_MACC,options.do_MACC_wAK,options.do_prior,
     options.geos_species,
+    options.do_prodloss,options.prodloss_path,
     options.do_geos_nox,options.do_geos_o3_wAK,
     options.do_3D,
     options.mod_data_path,options.sat_data_path,
@@ -183,6 +192,12 @@ def check_options_valid(options):
     if south > north or west > east:
         print("OPTIONS ERROR - FATAL: domain [ south = %g, north = %g, west = %g, east = %g ] is invalid"%(south,north,west,east))
         major_error += 1
+    
+    #prodloss needs model
+    if do_prodloss and geos_species == []:
+        print("OPTIONS ERROR - MINOR: Can't do prodloss without having at least one GEOS-Chem species")
+        minor_error += 1
+    
      
     #Satellite data
     #Are we using satellite data?
@@ -219,6 +234,17 @@ def check_options_valid(options):
         while date_loop <= end_date:
             #check each day for a valid GEOS-Chem output file
             file_to_check = replaceYYYYMMDD(mod_data_path,date_loop)
+            if not os.path.isfile(file_to_check):
+                print("OPTIONS ERROR - FATAL: File %s is requested but does not exist"%file_to_check)
+                major_error += 1
+            date_loop += td(days=1)
+    
+    if do_prodloss:        
+        #check data exists
+        date_loop = start_date
+        while date_loop <= end_date:
+            #check each day for a valid GEOS-Chem output file
+            file_to_check = replaceYYYYMMDD(prodloss_path,date_loop)
             if not os.path.isfile(file_to_check):
                 print("OPTIONS ERROR - FATAL: File %s is requested but does not exist"%file_to_check)
                 major_error += 1

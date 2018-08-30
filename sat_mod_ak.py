@@ -236,7 +236,11 @@ def make_dict(option):
         this_dict[spc+"_GL"] = val_record("GC_"+spc+"_GL",unit="v/v") #ground level
     if option.do_geos_nox:
         this_dict["NOx"] = val_record("GC_NOx",unit="molec cm-2") #column
-        this_dict["NOx_GL"] = val_record("GC_NOx_GL",unit="v/v")  #ground level    
+        this_dict["NOx_GL"] = val_record("GC_NOx_GL",unit="v/v")  #ground level
+        
+    if option.do_prodloss and option.geos_species != []:
+        this_dict["prodOx"] = val_record("prod_Ox",unit="molec/cm3/s") #production of Ox
+        this_dict["lossOx"] = val_record("loss_Ox",unit="molec/cm3/s") #loss of Ox       
 
     if option.do_gsc: #OMI ozone
         this_dict["GSC"]      = val_record("OMI O3",              "molec cm-2")
@@ -374,7 +378,7 @@ def get_AKs_from_sat(RAL_input,all_lat,all_lon,domain):
     
     return AKs_array_cut_rearr
 
-def pressure_cutoff(amount,pressure,cutoff=450.,commentary=""):
+def pressure_cutoff(amount,pressure,cutoff=450.,commentary="",do_avg=False):
     """Determines the amount of substance below the pressure cutoff, using interpolation where needed"""
     #amount : 3D grid of amount of substance (vertical, lat, lon)
     #pressure : 3D grid of pressure at the *bottom* of each box (vertical, lat, lon)
@@ -396,8 +400,13 @@ def pressure_cutoff(amount,pressure,cutoff=450.,commentary=""):
         for j in range(num_lons):
             pres_col = pressure[:,i,j] #get 1D array of pressures at this i,j point
             amount_col = amount[:,i,j] #get 1D array of amounts at this i,j point
+            amount_col = list(np.where(np.isnan(np.array(amount_col)),0.,np.array(amount_col)))
             #for each i,j point, get the sum up to this level (linearlt interpolating using log pressures)
             output[i,j] = float(log_interp_sum_to_level(pres_col,amount_col,cutoff))
+            if commentary == "full" and i == 20 and j == 20:
+                print pres_col
+                print amount_col
+                print output[i,j]
     
     return(output)
 
@@ -778,6 +787,12 @@ while this_date <= option.end_date:
         
         if use_mod_data and use_sat_data: #laterally regrid if needed
             pressure_bot = lateral_regrid_ND(mod_lat,mod_lon,pressure_bot,new_lat,new_lon)
+        
+        if option.do_prodloss:
+            #read in prodloss
+            print("Reading prodloss data")
+            prodloss_path = replaceYYYYMMDD(option.prodloss_path,this_date) #file
+            prodlossf = bpch(prodloss_path)          
                       
         for spc in option.geos_species:
             #For each model species, read in data
@@ -814,9 +829,86 @@ while this_date <= option.end_date:
             accum_dict["NOx_GL"].datelist.append(this_date)
             accum_dict["NOx_GL"].data.append(np.add(accum_dict["NO_GL"].data[GC_time_index],
                                                  accum_dict["NO2_GL"].data[GC_time_index]))
-    
-    
+        
+        if option.do_prodloss:
+            GC_time_index = accum_dict["O3"].datelist.index(this_date)
             
+            
+            oxprod = np.array(prodlossf.variables["PORL-L=$_POx"])[0] #O3 production, in kg/m3/s
+            oxloss = np.array(prodlossf.variables["PORL-L=$_LOx"])[0] #O3 loss, in 1/m3/s
+            
+            
+            print oxloss[0][50]
+            print "DEBUG preA"
+            #replace "inf" with np.nan         
+            oxloss = np.where(np.isinf(oxloss),np.nan,oxloss)
+            print oxloss[0][50]
+            print "DEBUG A"            
+            #oxprod and oxloss are on 38 layers.
+            #Add nine zero layers at top
+            
+            pl_shape = oxprod.shape
+            nine_0 = np.zeros((9,pl_shape[1],pl_shape[2]))
+            
+            oxprod = np.concatenate((oxprod,nine_0),axis=0)
+            oxloss = np.concatenate((oxloss,nine_0),axis=0)
+            
+            print oxprod.shape
+            
+            #let's get things into sensible units
+            #Prod - starts in kg/m3/s
+            oxprod = oxprod * 1e3 #in g/m3/s
+            oxprod = oxprod * 1e-6 #in g/cm3/s
+            oxprod = oxprod * (6.022e23/58.) # in molec/cm3/s         
+            oxprod_per_cm2 = np.multiply(box_height,oxprod) #molec per cm2 per sec for each box
+            
+            #Loss - starts in 1/m3/s (fraction of box's o3 lost per m3 per sec) 
+            print oxloss[0][50]
+            print "DEBUG B"
+            #get areas of boxes
+            area = 8.6e8 #m2 BODGE flat value.
+            oxloss = oxloss * area #1/m/s
+            print oxloss[0][50]
+            print "DEBUG C"
+            oxloss = np.multiply(oxloss,box_height) * 0.01 #1/s
+            print oxloss[0][50]
+            print "DEBUG C"
+            oxloss_per_cm2 = np.multiply(oxloss,
+                                 np.multiply(np.array(modf.variables["IJ-AVG-$_O3"])[0] * 1e-9,
+                                             air_amount)
+                                ) #molec per cm2 per sec for each box
+            
+            print oxloss_per_cm2[0][50]
+            print "DEBUG D"
+
+                       
+            #lateral regrid
+            if use_mod_data and use_sat_data:                
+                oxprod_per_cm2 =      lateral_regrid_ND(mod_lat,mod_lon,oxprod_per_cm2,new_lat,new_lon)
+                oxloss_per_cm2 =      lateral_regrid_ND(mod_lat,mod_lon,oxloss_per_cm2,new_lat,new_lon)
+            
+            
+            accum_dict["prodOx"].datelist.append(this_date) #date for variable
+            accum_dict["lossOx"].datelist.append(this_date) #date for variable
+            if option.do_3D: #3D layers for species
+                oxprod_in_level = pressure_slicer(oxprod_per_cm2,pressure_bot,levels=out_levs)
+                oxloss_in_level = pressure_slicer(oxloss_per_cm2,pressure_bot,levels=out_levs)
+                accum_dict["prodOx"].data.append(oxprod_in_level) #add to dictionary
+                accum_dict["lossOx"].data.append(oxloss_in_level) #add to dictionary
+            else: #just surface-450hPa
+                
+                print oxloss[0][50]
+                print "DEBUG E"
+                                             
+                oxprod_tropospheric = pressure_cutoff(oxprod_per_cm2,pressure_bot) #get amount in troposphere
+                oxloss_tropospheric = pressure_cutoff(oxloss_per_cm2,pressure_bot,commentary="full") #get amount in troposphere
+                
+                print oxloss_tropospheric.shape
+                print oxloss_tropospheric
+                print "DEBUG F"
+                
+                accum_dict["prodOx"].data.append(oxprod_tropospheric) #add to dictionary
+                accum_dict["lossOx"].data.append(oxloss_tropospheric) #add to dictionary           
     
     if option.do_geos_o3_wAK:
         #If we're using daily satellite data, we apply the daily AKs each day then take the average of the result at the end
@@ -979,6 +1071,9 @@ for key in result_dict:
         nc_var = dataset.createVariable(result_dict[key].name, np.float32, ('time','lat','lon'))
         nc_var.units = result_dict[key].unit
         nc_var[:,:,:] = result_dict[key].data
+        
+        if key == "lossOx":
+            print result_dict[key].data        
         
 
 
