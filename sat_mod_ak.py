@@ -9,7 +9,9 @@ from datetime import timedelta as td
 from datetime import date as date
 import matplotlib.pyplot as plt
 import netCDF4 as nc4
-from bpch import bpch
+#from bpch import bpch
+
+import PseudoNetCDF as pnc
 import sys
 
 from scipy.interpolate import RegularGridInterpolator
@@ -41,7 +43,7 @@ def pid(text):
 
 def frange(x, y, jump):
   """A simple utility for creating a sequentiual list of floats"""
-  while x <= y:
+  while x+jump <= y:
     yield x
     x += jump
     
@@ -155,9 +157,9 @@ def lateral_regrid_ND(in_lat,in_lon,in_array,out_lat,out_lon):
     #return the filled output        
     return out_array
 
-def regrid_from_spacing(in_list,new_spacing):
-    """Produces a new set of points (i.e. longitudes or latitudes) covering the span of the input with the new spacing"""
-    return list(frange(min(in_list), max(in_list), spacing))
+#def regrid_from_spacing(in_list,new_spacing):
+#    """Produces a new set of points (i.e. longitudes or latitudes) covering the span of the input with the new spacing"""
+#    return list(frange(min(in_list), max(in_list), spacing))
 
 def conv4D_3D(in_array):
     """Checks if an array is 4D. If so, average across 1st dimension, if not, return unmodified"""
@@ -354,6 +356,7 @@ def get_AKs_from_sat(RAL_input,all_lat,all_lon,domain):
         print("len(all_lon) = %i" %len(all_lon))
         print("AKs_T1.shape = (next line)")
         print(AKs_T1.shape)
+        print(AKs_T1[0].shape)
         raise IOError("Invalid shape")
     
     #create a simple numpy array                    
@@ -646,12 +649,12 @@ def bias_correct(array,lat,date):
     latbands = [-75.,-45.,-15.,45.,75.]
         
     corrs= np.multiply(
-           np.array([[-1.35,-1.44,-1.6 ,-3.71,-3.37,-2.48,-2.26,-2.9 ,-2.57,-1.1 ,-1   ,-1.25],
-                   [-5.72,-5.7 ,-5.89,-4.14,-2.97,-2.29,-2.16,-1.05,-0.67,1.46 ,-1.15,-2.52],
-                   [5.99 ,-5.38,-5.63,-5.04,-4.15,-2.51,-2.34,-1.74,-2.65,-1.24,-2.34,-2.79],
-                   [-5.34,-6.28,-6.85,-6.4 ,-5.01,-3.01,-2.95,-2.24,-2.74,-0.97,-1.27,-1.64],
-                   [-6.94,-7.11,-9.69,-8.18,-6.69,-4.28,-3.18,-1.13,-1.87,-0.70,-2.79,-3.97],
-                   [-9.28,-8.04,-9.02,-5.44,-6.52,-4.88,-3.36,-1.65,-2.18,-3.75,-9.05,-5.77]
+           np.array([[-0.431,-0.911,-0.365,-3.41, -3.51, -2.22, -1.9,  -2.94, -4.62, -2.82, -3.01, -2.04 ],
+                     [-5.88, -5.88, -6.6,  -3.94, -2.58, -2.02, -1.25, -0.336,-0.68, 1.84,  0.015, -2.9  ],
+                     [-7.73, -7.53, -8.64, -7.74, -6.68, -5.03, -4.36, -4.15, -4.97, -4.44, -4.97, -6.48 ],
+                     [-6.88, -8.48, -9.92, -9.04, -7.07, -4.73, -4.27, -4.19, -4.62, -3.58, -2.62, -3.49 ],
+                     [-5.64, -4.86, -9.86, -6.65, -4.51, -2.01, -2.33, -0.923,-0.636,0.0876,-1.09, -2.03 ],
+                     [-4.24, -3.48, -5.82, 0.363, 0.0274,0.0176,0.776, 2.69,  1.14,  -2.64, -7.44, -4.01 ]
                   ]),2.687e16) #in molec.cm-2
     corr_m = date.month-1
     
@@ -736,7 +739,7 @@ while this_date <= option.end_date:
             continue
         
         #get full latitudes and longitudes from file      
-        all_lat = np.array(list(frange(satf['x'].LAG[0][0]+0.5*satf['x'].LAG[0][2],satf['x'].LAG[0][1],satf['x'].LAG[0][2]))) #failure will occur here if invalid file
+        all_lat = np.array(list(frange(satf['x'].LAG[0][0]+0.5*satf['x'].LAG[0][2],satf['x'].LAG[0][1],satf['x'].LAG[0][2]))) #failure will occur here if invalid file        
         all_lon = np.array(list(frange(satf['x'].LOG[0][0]+0.5*satf['x'].LOG[0][2],satf['x'].LOG[0][1],satf['x'].LOG[0][2])))
         #dictionary of satellite data
         sat_data_dict = {
@@ -766,7 +769,9 @@ while this_date <= option.end_date:
     if use_mod_data: #this will be read every day, regardless of read/write options
         print("Reading model data")
         modf_path = replaceYYYYMMDD(option.mod_data_path,this_date) #file
-        modf = bpch(modf_path)
+        #modf = bpch(modf_path)
+        
+        modf = pnc.pncopen(modf_path, format = 'geoschemfiles.bpch')
         #get some values used for all
         #lat and lon
         mod_lat = np.array(modf.variables['latitude'])
@@ -780,8 +785,18 @@ while this_date <= option.end_date:
         
         #air density and amounts
         box_height = np.array(modf.variables['BXHGHT-$_BXHEIGHT'])[0] * 100 #box height in cm
+        
+        print("DEBUG")
+        print box_height.shape
+        
         air_den =    np.array(modf.variables['TIME-SER_AIRDEN'])[0]  # air density molec.cm-3
-        air_amount = np.multiply(box_height,air_den)[0] #air per grid box molec.cm-2
+        
+        print air_den.shape
+        
+        air_amount = np.multiply(box_height,air_den) #air per grid box molec.cm-2
+        
+        print air_amount.shape
+        
         #data for pressure
         pressure_bot = np.array(modf.variables['PEDGE-$_PSURF'])[0]  # pressure  
         
@@ -792,13 +807,23 @@ while this_date <= option.end_date:
             #read in prodloss
             print("Reading prodloss data")
             prodloss_path = replaceYYYYMMDD(option.prodloss_path,this_date) #file
-            prodlossf = bpch(prodloss_path)          
+            #prodlossf = bpch(prodloss_path)          
+            prodlossf = pnc.pncopen(prodloss_path, format = 'geoschemfiles.bpch')
                       
         for spc in option.geos_species:
+            
             #For each model species, read in data
-            spc_mixratio = np.array(modf.variables["IJ-AVG-$_%s"%spc])[0] * 1e-9 #array of mixing ratios            
+            spc_mixratio = np.array(modf.variables["IJ-AVG-$_%s"%spc])[0] * 1e-9 #array of mixing ratios 
+            
+                      
             #column
             spc_molec_per_cm2 = np.multiply(air_amount,spc_mixratio) #molec per cm2 for each box
+            
+            if spc == "O3":
+                print("DEBUG")
+                print spc_mixratio.shape
+                print spc_molec_per_cm2.shape
+            
             #If we're doing both satellite and model data, we'll need to laterally regrid the model data
             if use_mod_data and use_sat_data:                
                 spc_molec_per_cm2 = lateral_regrid_ND(mod_lat,mod_lon,spc_molec_per_cm2,new_lat,new_lon)
@@ -838,12 +863,12 @@ while this_date <= option.end_date:
             oxloss = np.array(prodlossf.variables["PORL-L=$_LOx"])[0] #O3 loss, in 1/m3/s
             
             
-            print oxloss[0][50]
-            print "DEBUG preA"
+            #print oxloss[0][50]
+            #print "DEBUG preA"
             #replace "inf" with np.nan         
             oxloss = np.where(np.isinf(oxloss),np.nan,oxloss)
-            print oxloss[0][50]
-            print "DEBUG A"            
+            #print oxloss[0][50]
+            #print "DEBUG A"            
             #oxprod and oxloss are on 38 layers.
             #Add nine zero layers at top
             
@@ -863,23 +888,23 @@ while this_date <= option.end_date:
             oxprod_per_cm2 = np.multiply(box_height,oxprod) #molec per cm2 per sec for each box
             
             #Loss - starts in 1/m3/s (fraction of box's o3 lost per m3 per sec) 
-            print oxloss[0][50]
-            print "DEBUG B"
+            #print oxloss[0][50]
+            #print "DEBUG B"
             #get areas of boxes
             area = 8.6e8 #m2 BODGE flat value.
             oxloss = oxloss * area #1/m/s
-            print oxloss[0][50]
-            print "DEBUG C"
+            #print oxloss[0][50]
+            #print "DEBUG C"
             oxloss = np.multiply(oxloss,box_height) * 0.01 #1/s
-            print oxloss[0][50]
-            print "DEBUG C"
+            #print oxloss[0][50]
+            #print "DEBUG C"
             oxloss_per_cm2 = np.multiply(oxloss,
                                  np.multiply(np.array(modf.variables["IJ-AVG-$_O3"])[0] * 1e-9,
                                              air_amount)
                                 ) #molec per cm2 per sec for each box
             
-            print oxloss_per_cm2[0][50]
-            print "DEBUG D"
+            #print oxloss_per_cm2[0][50]
+            #print "DEBUG D"
 
                        
             #lateral regrid
@@ -897,15 +922,15 @@ while this_date <= option.end_date:
                 accum_dict["lossOx"].data.append(oxloss_in_level) #add to dictionary
             else: #just surface-450hPa
                 
-                print oxloss[0][50]
-                print "DEBUG E"
+                #print oxloss[0][50]
+                #print "DEBUG E"
                                              
                 oxprod_tropospheric = pressure_cutoff(oxprod_per_cm2,pressure_bot) #get amount in troposphere
-                oxloss_tropospheric = pressure_cutoff(oxloss_per_cm2,pressure_bot,commentary="full") #get amount in troposphere
+                oxloss_tropospheric = pressure_cutoff(oxloss_per_cm2,pressure_bot) #get amount in troposphere
                 
-                print oxloss_tropospheric.shape
-                print oxloss_tropospheric
-                print "DEBUG F"
+                #print oxloss_tropospheric.shape
+                #print oxloss_tropospheric
+                #print "DEBUG F"
                 
                 accum_dict["prodOx"].data.append(oxprod_tropospheric) #add to dictionary
                 accum_dict["lossOx"].data.append(oxloss_tropospheric) #add to dictionary           
@@ -964,7 +989,10 @@ while this_date <= option.end_date:
                      
             result_dict[key].datelist.append(min(accum_dict[key].datelist)) #set date to first date recorded for this variable
             
-            data_masked = np.ma.array(accum_dict[key].data, mask = np.isnan(accum_dict[key].data))
+            if option.mask_as_all:
+                data_masked = np.ma.array(accum_dict[key].data, mask = np.logical_or(np.isnan(accum_dict[key].data),np.isnan(accum_dict["GSC"].data)))
+            else:
+                data_masked = np.ma.array(accum_dict[key].data, mask = np.isnan(accum_dict[key].data))
             
             time_av_result = np.ma.average(data_masked,axis=0) #average over time dimension
             

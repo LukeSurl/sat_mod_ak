@@ -27,6 +27,7 @@ class opts:
            sat_time_res,
            do_gsc,do_MACC,do_MACC_wAK,do_prior,
            geos_species,
+           mask_as_all,
            do_prodloss,prodloss_path,
            do_geos_nox,do_geos_o3_wAK,
            do_3D,
@@ -38,6 +39,7 @@ class opts:
         self.cycle_type      = cycle_type
         self.domain          = domain
         self.sat_time_res    = sat_time_res
+        self.mask_as_all     = mask_as_all
         self.do_gsc          = do_gsc
         self.do_MACC         = do_MACC
         self.do_MACC_wAK     = do_MACC_wAK
@@ -61,7 +63,7 @@ def get_options():
     end_date   = dt(2014, 12,  30) #end date (inclusive):: (YYYY,MM,DD)
 
     #==Output options==
-    cycle_type = "all"         #Time resolution of output. Options are:
+    cycle_type = "month"         #Time resolution of output. Options are:
                                #"all"   -> take average of all data between start_date and end_date
                                #"season"-> take averages for seasons, JFM AMJ JAS OND
                                #"month" -> take averages for indvididual months
@@ -73,6 +75,9 @@ def get_options():
     #satellite options
     sat_time_res = "m"         #Temporal resolution of satellite file input.
                                #options are "m"=monthly, and "d"=daily
+                               
+    mask_as_all = False         #mask all data as the satellite is masked
+                               
     do_gsc = True              #main retrived o3 column
     do_MACC= True              #Output from the MACC model
     do_MACC_wAK = True         #Output from the MACC model after AK application
@@ -108,8 +113,10 @@ def get_options():
     mod_data_path = "/geos/d21/lsurl/geos11_runs/geosfp_025x03125_tropchem_ch/ND51/ts_omi.YYYYMMDD.bpch"
     if sat_time_res == "m":
         #Path of MONTHLY satellite data
-        sat_data_path = '/geos/d21/downloaded_sat_data/ozone_omi_fv0214/monthly_lag-90_90_2.5_log-180_180_2.5/YYYY/o3p_bin_vs_model_YYYYMMXX_MACC_mcef0.2_sza80_mcost120_mcb1_lzr_omfra_ak.str' #OLD
+        #sat_data_path = '/geos/d21/downloaded_sat_data/ozone_omi_fv0214/monthly_lag-90_90_2.5_log-180_180_2.5/YYYY/o3p_bin_vs_model_YYYYMMXX_MACC_mcef0.2_sza80_mcost120_mcb1_lzr_omfra_ak.str' #OLD
         #sat_data_path = '/geos/d21/downloaded_sat_data/ozone_omi_fv0214/monthly_lag-10_40_0.5_log65_130_0.5/YYYY/o3p_bvm_YYYYMMXX_omi_MACC_mcef0.2_sza80_mcost120_lzr_ak.str' #NEW
+        sat_data_path = '/geos/d21/downloaded_sat_data/ozone_omi_fv0300/monthly_lag-10_40_0.75_log65_130_0.75/YYYY/o3p_bvm_YYYYMMXX_omi_MACC_mcef0.2_sza80_mcost120_lzr_omfra2_ak_xtcor1.str' #good, xtcor1
+        #sat_data_path = '/geos/d21/downloaded_sat_data/ozone_omi_fv0300/monthly_lag-10_40_0.75_log65_130_0.75/YYYY/o3p_bvm_YYYYMMXX_omi_MACC_mcef0.2_sza80_mcost120_lzr_omfra2_ak_xtcor2.str' #good, xtcor2
     elif sat_time_res =="d":
         #Path of DAILY satellite data
         #sat_data_path = '/geos/d21/downloaded_sat_data/ozone_omi_fv0214/daily_lag-90_90_2.5_log-180_180_2.5/YYYYMM/o3p_bin_vs_model_YYYYMMDD_MACC_mcef0.2_sza80_mcost120_mcb1_lzr_omfra_ak.str' #OLD
@@ -117,7 +124,7 @@ def get_options():
     
     #==save location, and file prefic==
     
-    sav_pre = "/geos/u28/scripts/GEOS-Chem_columns/Main_badsat_2D" #add nc file prefix. Add path if not wanting to save in working directory. The rest of the filename will be the date span (from start_date to end_date)
+    sav_pre = "/geos/u28/scripts/GEOS-Chem_columns/PL_goodsat_x1_monthly_" #add nc file prefix. Add path if not wanting to save in working directory. The rest of the filename will be the date span (from start_date to end_date)
     
                                 
     return(
@@ -127,6 +134,7 @@ def get_options():
            sat_time_res,
            do_gsc,do_MACC,do_MACC_wAK,do_prior,
            geos_species,
+           mask_as_all,
            do_prodloss,prodloss_path,
            do_geos_nox,do_geos_o3_wAK,
            do_3D,
@@ -144,6 +152,7 @@ def check_options_valid(options):
     sat_time_res,
     do_gsc,do_MACC,do_MACC_wAK,do_prior,
     geos_species,
+    mask_as_all,
     do_prodloss,prodloss_path,
     do_geos_nox,do_geos_o3_wAK,
     do_3D,
@@ -156,6 +165,7 @@ def check_options_valid(options):
     options.sat_time_res,
     options.do_gsc,options.do_MACC,options.do_MACC_wAK,options.do_prior,
     options.geos_species,
+    options.mask_as_all,
     options.do_prodloss,options.prodloss_path,
     options.do_geos_nox,options.do_geos_o3_wAK,
     options.do_3D,
@@ -198,6 +208,10 @@ def check_options_valid(options):
         print("OPTIONS ERROR - MINOR: Can't do prodloss without having at least one GEOS-Chem species")
         minor_error += 1
     
+    #mask_as_all resquires GSC
+    if mask_as_all and not do_gsc:
+        print("OPTIONS ERROR - FATAL: mask_as_all=True requires do_gsc=True")
+        major_error += 1
      
     #Satellite data
     #Are we using satellite data?
