@@ -120,11 +120,11 @@ do_scatter = False
 
 do_prodloss = False
 
-cycle_type = "year"
+cycle_type = "monthly"
 start_date = dt(2014,1,01)
 end_date   = dt(2014,12,30)
 
-save_pre = '/geos/u28/scripts/GEOS-Chem_columns/for_poster/X1_'
+save_pre = '/geos/u28/scripts/GEOS-Chem_columns/new_BC/X1_newBC'
 
 if cycle_type == "daily":
 
@@ -150,7 +150,7 @@ fields_dict = {
                #'MACC_O3'       :['MACC O3'                       ,'MACC tropospheric ozone column'                                ,0,   max_o3],
                #'MACC_O3_wAK'   :['MACC O3 with OMI AKs'          ,'MACC, with OMI AKs, tropospheric ozone column'                 ,0,   max_o3],
                #'prior'         :['prior'                         ,'Prior tropospheric O3 column'                                  ,0,   max_o3],
-               #'sat_o3'        :['OMI O3'                        ,'OMI tropospheric ozone column'                                 ,0,   max_o3],
+               'sat_o3'        :['OMI O3'                        ,'OMI tropospheric ozone column'                                 ,0,   max_o3],
                'sat_o3_wBC'    :['OMI O3 with bias correction'   ,'OMI tropospheric ozone column, with bias correction'           ,0.2e18,   max_o3],
                #'GC_CO'         :['GC_CO'                         ,'GEOS-Chem tropospheric CO column'                              ,0,   1.5e18],
                #'GC_CO_GL'      :['GC_CO_GL'                      ,'GEOS-Chem ground-level CO mixing ratio'                        ,0,   4e-7  ],
@@ -162,7 +162,7 @@ fields_dict = {
                #'GC_NOx_GL'     :['GC_NOx_GL'                     ,'GEOS-Chem ground-level NOx mixing ratio'                       ,0,   5e-9  ],
                #'GC_CH2O'       :['GC_CH2O'                       ,'GEOS-Chem tropospheric HCHO column'                            ,0,   1.5e16],
                #'GC_CH2O_GL'    :['GC_CH2O_GL'                    ,'GEOS-Chem ground-level HCHO mixing ratio'                      ,0,   2.5e-9],
-               'GC_O3'         :['GC_O3'                         ,'GEOS-Chem tropospheric O3 column'                              ,0.2e18,   max_o3],
+               #'GC_O3'         :['GC_O3'                         ,'GEOS-Chem tropospheric O3 column'                              ,0.2e18,   max_o3],
                #'GC_O3_GL'      :['GC_O3_GL'                      ,'GEOS-Chem ground-level O3 mixing ratio'                        ,30.e-9,   60.e-9],
                #'prod_Ox'       :['prod_Ox'                       ,'Ox production rate'                                            ,0,   2.5e12],
                #'loss_Ox'       :['loss_Ox'                       ,'Ox loss rate'                                                  ,0,   2.5e12]
@@ -172,7 +172,7 @@ fields_dict = {
             load_regiondata(country_statefile,states=True) #get countries for points
 
 #define file
-nc = NetCDFFile('/geos/u28/scripts/GEOS-Chem_columns/PL_goodsat_x1_monthly__%s-%s.nc'%(start_date.strftime('%Y%m%d'),end_date.strftime('%Y%m%d')))
+nc = NetCDFFile('/geos/u28/scripts/GEOS-Chem_columns/NewBC_x1_all__%s-%s.nc'%(start_date.strftime('%Y%m%d'),end_date.strftime('%Y%m%d')))
 #nc = NetCDFFile('/geos/u28/scripts/GEOS-Chem_columns/PL_goodsat_x1_new_2D_%s-%s.nc'%(start_date.strftime('%Y%m%d'),end_date.strftime('%Y%m%d')))
 
 

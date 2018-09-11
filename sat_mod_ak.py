@@ -246,6 +246,7 @@ def make_dict(option):
 
     if option.do_gsc: #OMI ozone
         this_dict["GSC"]      = val_record("OMI O3",              "molec cm-2")
+    
     if option.do_MACC: #MACC ozone
         this_dict["MACC"]     = val_record("MACC O3",             "molec cm-2")
     if option.do_MACC_wAK: #MACC ozone with averaging kernals
@@ -561,6 +562,11 @@ def apply_AKs_grid(o3,AKs,GC_pressures,toa=0.01,debug=False):
     
     #generate output grid
     output = np.zeros((LR_levs-1,mod_extent_i,mod_extent_j))
+    #set to all nans
+    for l in range(len(output)):
+        for i in range(len(output[0])):
+            for j in range(len(output[0][0])):
+                output[l][i][j] = np.nan
     
     #cycle through points
     for i in range(mod_extent_i):
@@ -644,18 +650,32 @@ def fillAK(AK,debug=False):
         print(this_AK)
     return this_AK
     
-def bias_correct(array,lat,date):
+def bias_correct(array,lat,date,BCs="new"):
     
-    latbands = [-75.,-45.,-15.,45.,75.]
-        
-    corrs= np.multiply(
-           np.array([[-0.431,-0.911,-0.365,-3.41, -3.51, -2.22, -1.9,  -2.94, -4.62, -2.82, -3.01, -2.04 ],
-                     [-5.88, -5.88, -6.6,  -3.94, -2.58, -2.02, -1.25, -0.336,-0.68, 1.84,  0.015, -2.9  ],
-                     [-7.73, -7.53, -8.64, -7.74, -6.68, -5.03, -4.36, -4.15, -4.97, -4.44, -4.97, -6.48 ],
-                     [-6.88, -8.48, -9.92, -9.04, -7.07, -4.73, -4.27, -4.19, -4.62, -3.58, -2.62, -3.49 ],
-                     [-5.64, -4.86, -9.86, -6.65, -4.51, -2.01, -2.33, -0.923,-0.636,0.0876,-1.09, -2.03 ],
-                     [-4.24, -3.48, -5.82, 0.363, 0.0274,0.0176,0.776, 2.69,  1.14,  -2.64, -7.44, -4.01 ]
-                  ]),2.687e16) #in molec.cm-2
+    latbands = [-75.,-45.,-15.,15.,45.,75.]
+    
+    
+    
+    if BCs == "new":    
+        corrs= np.multiply(
+               np.array([[-0.431,-0.911,-0.365,-3.41,  -3.51,  -2.22, -1.9,  -2.94, -4.62,  -2.82,  -3.01, -2.04 ],
+                         [-5.88, -5.88, -6.6,  -3.94,  -2.58,  -2.02, -1.25, -0.336,-0.68,   1.84,   0.015,-2.9  ],
+                         [-7.73, -7.53, -8.64, -7.74,  -6.68,  -5.03, -4.36, -4.15, -4.97,  -4.44,  -4.97, -6.48 ],
+                         [-6.88, -8.48, -9.92, -9.04,  -7.07,  -4.73, -4.27, -4.19, -4.62,  -3.58,  -2.62, -3.49 ],
+                         [-5.64, -4.86, -9.86, -6.65,  -4.51,  -2.01, -2.33, -0.923,-0.636,  0.0876,-1.09, -2.03 ],
+                         [-4.24, -3.48, -5.82,  0.363,  0.0274, 0.0176,0.776, 2.69,  1.14,  -2.64,  -7.44, -4.01 ]
+                      ]),2.687e16) #in molec.cm-2
+    else:
+            corrs= np.multiply(
+               np.array([[-1.35, -1.44, -1.6 , -3.71, -3.37, -2.48, -2.26, -2.9 ,-2.57,-1.1 ,-1   ,-1.25],
+                         [-5.72, -5.7 , -5.89, -4.14, -2.97, -2.29, -2.16, -1.05,-0.67,1.46 ,-1.15,-2.52],
+                         [-5.99, -5.38, -5.63, -5.04, -4.15, -2.51, -2.34, -1.74,-2.65,-1.24,-2.34,-2.79],
+                         [-5.34, -6.28, -6.85, -6.4 , -5.01, -3.01, -2.95, -2.24,-2.74,-0.97,-1.27,-1.64],
+                         [-6.94, -7.11, -9.69, -8.18, -6.69, -4.28, -3.18, -1.13,-1.87,-0.70,-2.79,-3.97],
+                         [-9.28, -8.04, -9.02, -5.44, -6.52, -4.88, -3.36, -1.65,-2.18,-3.75,-9.05,-5.77]
+                      ]),2.687e16) #in molec.cm-2
+                  
+                  
     corr_m = date.month-1
     
     this_month_corrs = [corrs[i][corr_m] for i in range(len(latbands))]
@@ -665,11 +685,11 @@ def bias_correct(array,lat,date):
          if lat[i] <= -75.:
             thiscorr = corrs[0][corr_m]
          elif lat[i] >= 75.:
-            thiscorr = corrs[4][corr_m]
+            thiscorr = corrs[5][corr_m]
          else:
             interp = scipy.interpolate.interp1d(latbands,this_month_corrs)
             thiscorr = interp(lat[i])
-         #print "Correction for lat = %g, month = %i  -> subtract %g"%(lat[i],corr_m,thiscorr)
+         print "Correction for lat = %g, month = %i  -> subtract %g"%(lat[i]+1,corr_m,thiscorr)
          #print array[i]
          out_array[i] = np.subtract(array[i],thiscorr)
          #print out_array[i]
@@ -784,19 +804,10 @@ while this_date <= option.end_date:
 
         
         #air density and amounts
-        box_height = np.array(modf.variables['BXHGHT-$_BXHEIGHT'])[0] * 100 #box height in cm
-        
-        print("DEBUG")
-        print box_height.shape
-        
-        air_den =    np.array(modf.variables['TIME-SER_AIRDEN'])[0]  # air density molec.cm-3
-        
-        print air_den.shape
-        
+        box_height = np.array(modf.variables['BXHGHT-$_BXHEIGHT'])[0] * 100 #box height in cm      
+        air_den =    np.array(modf.variables['TIME-SER_AIRDEN'])[0]  # air density molec.cm-3  
         air_amount = np.multiply(box_height,air_den) #air per grid box molec.cm-2
-        
-        print air_amount.shape
-        
+                
         #data for pressure
         pressure_bot = np.array(modf.variables['PEDGE-$_PSURF'])[0]  # pressure  
         
@@ -820,9 +831,10 @@ while this_date <= option.end_date:
             spc_molec_per_cm2 = np.multiply(air_amount,spc_mixratio) #molec per cm2 for each box
             
             if spc == "O3":
-                print("DEBUG")
-                print spc_mixratio.shape
-                print spc_molec_per_cm2.shape
+                pass
+                #print("DEBUG")
+                #print spc_mixratio.shape
+                #print spc_molec_per_cm2.shape
             
             #If we're doing both satellite and model data, we'll need to laterally regrid the model data
             if use_mod_data and use_sat_data:                
@@ -1039,6 +1051,11 @@ if option.do_gsc and not option.do_3D: #do bias correction
         unbiased_data[t] = bias_correct(result_dict["GSC"].data[t],lat_for_nc,result_dict["GSC_wbiascorr"].datelist[t])    
     #print result_dict["GSC"].data
     result_dict["GSC_wbiascorr"].data = unbiased_data
+    
+    result_dict["biascorr"] = val_record("bias correction","molec cm-2")
+    result_dict["biascorr"].datelist = result_dict["GSC"].datelist    
+    result_dict["biascorr"].data = np.subtract(result_dict["GSC_wbiascorr"].data,result_dict["GSC"].data)
+    
     #print result_dict["GSC_wbiascorr"].data
     
 if option.do_gsc and option.do_3D:
