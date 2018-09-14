@@ -60,10 +60,10 @@ def get_options():
     #==Date and time==
 
     start_date = dt(2014, 1,   1) #first date          :: (YYYY,MM,DD)
-    end_date   = dt(2014, 12,  30) #end date (inclusive):: (YYYY,MM,DD)
+    end_date   = dt(2014, 12, 30) #end date (inclusive):: (YYYY,MM,DD)
 
     #==Output options==
-    cycle_type = "all"         #Time resolution of output. Options are:
+    cycle_type = "month"         #Time resolution of output. Options are:
                                #"all"   -> take average of all data between start_date and end_date
                                #"season"-> take averages for seasons, JFM AMJ JAS OND
                                #"month" -> take averages for indvididual months
@@ -124,7 +124,7 @@ def get_options():
     
     #==save location, and file prefic==
     
-    sav_pre = "/geos/u28/scripts/GEOS-Chem_columns/NewBC_x1_all_" #add nc file prefix. Add path if not wanting to save in working directory. The rest of the filename will be the date span (from start_date to end_date)
+    sav_pre = "/geos/u28/scripts/GEOS-Chem_columns/NewBC_x1_monthly_" #add nc file prefix. Add path if not wanting to save in working directory. The rest of the filename will be the date span (from start_date to end_date)
     
                                 
     return(

@@ -8,6 +8,16 @@ import matplotlib.pyplot as plt
 from datetime import datetime as dt
 from datetime import timedelta as td
 import sys
+from scipy import stats
+from itertools import tee, izip
+#from numpy.polynomial.polynomial import polyfit
+
+def pairwise(iterable):
+    "s -> (s0,s1), (s1,s2), (s2, s3), ..."
+    a, b = tee(iterable)
+    next(b, None)
+    return izip(a, b)
+
 
 def load_regiondata(filename,states=True):
     """Reads a csv file which reports the country (and, optionally, the state) on a grid"""
@@ -124,7 +134,7 @@ cycle_type = "monthly"
 start_date = dt(2014,1,01)
 end_date   = dt(2014,12,30)
 
-save_pre = '/geos/u28/scripts/GEOS-Chem_columns/new_BC/X1_newBC'
+save_pre = '/geos/u28/scripts/GEOS-Chem_columns/new_BC_month/X1_newBC_month'
 
 if cycle_type == "daily":
 
@@ -137,21 +147,23 @@ elif cycle_type == "monthly":
 elif cycle_type == "year":
     season_list = ["year"]
 
-max_o3 = 0.7e18
+max_o3 = 1.0e18
 
+do_country_mask = False
 country_statefile = "country_state.csv"
 
 
              #{quickname: [NC_fieldname, full_name,lower_plotbound,upper_plot_bound]
 fields_dict = {
                #'GC_O3_wAK'     :['GC_O3 with OMI AKs'            ,'GEOS-Chem, with OMI AKs, tropospheric ozone column (no prior)' ,0,   max_o3],
-               'GC_O3_wAK_wpri':['GEOS O3 with OMI AKs inc prior','GEOS-Chem, with OMI AKs, tropspheric ozone column (with prior)',0.2e18,   max_o3],
+               'GC_O3_wAK_wpri':['GEOS O3 with OMI AKs inc prior','GEOS-Chem, with OMI AKs, tropspheric ozone column (with prior)',0.0e18,   max_o3],
                #'GC_O3_wAK_SUBpri':['GEOS O3 with OMI AKs SUB prior','GEOS-Chem, with OMI AKs, tropspheric ozone column (with prior subtracted)',0,   max_o3],
-               #'MACC_O3'       :['MACC O3'                       ,'MACC tropospheric ozone column'                                ,0,   max_o3],
+               'MACC_O3'       :['MACC O3'                       ,'MACC tropospheric ozone column'                                ,0,   max_o3],
                #'MACC_O3_wAK'   :['MACC O3 with OMI AKs'          ,'MACC, with OMI AKs, tropospheric ozone column'                 ,0,   max_o3],
                #'prior'         :['prior'                         ,'Prior tropospheric O3 column'                                  ,0,   max_o3],
                'sat_o3'        :['OMI O3'                        ,'OMI tropospheric ozone column'                                 ,0,   max_o3],
-               'sat_o3_wBC'    :['OMI O3 with bias correction'   ,'OMI tropospheric ozone column, with bias correction'           ,0.2e18,   max_o3],
+               'sat_o3_wBC'    :['OMI O3 with bias correction'   ,'OMI tropospheric ozone column, with bias correction'           ,0.0e18,   max_o3],
+               'sat_o3_wBC_old'    :['OMI O3 with OLD bias correction'   ,'OMI tropospheric ozone column, with OLD bias correction'           ,0.0e18,   max_o3],
                #'GC_CO'         :['GC_CO'                         ,'GEOS-Chem tropospheric CO column'                              ,0,   1.5e18],
                #'GC_CO_GL'      :['GC_CO_GL'                      ,'GEOS-Chem ground-level CO mixing ratio'                        ,0,   4e-7  ],
                #'GC_NO'         :['GC_NO'                         ,'GEOS-Chem tropospheric NO column'                              ,0,   1e16  ],
@@ -162,8 +174,9 @@ fields_dict = {
                #'GC_NOx_GL'     :['GC_NOx_GL'                     ,'GEOS-Chem ground-level NOx mixing ratio'                       ,0,   5e-9  ],
                #'GC_CH2O'       :['GC_CH2O'                       ,'GEOS-Chem tropospheric HCHO column'                            ,0,   1.5e16],
                #'GC_CH2O_GL'    :['GC_CH2O_GL'                    ,'GEOS-Chem ground-level HCHO mixing ratio'                      ,0,   2.5e-9],
-               #'GC_O3'         :['GC_O3'                         ,'GEOS-Chem tropospheric O3 column'                              ,0.2e18,   max_o3],
+               'GC_O3'         :['GC_O3'                         ,'GEOS-Chem tropospheric O3 column'                              ,0.0e18,   max_o3],
                #'GC_O3_GL'      :['GC_O3_GL'                      ,'GEOS-Chem ground-level O3 mixing ratio'                        ,30.e-9,   60.e-9],
+               'bias_corr'      :['bias correction'               ,'Bias correction applied'                                       ,0,   3e17]
                #'prod_Ox'       :['prod_Ox'                       ,'Ox production rate'                                            ,0,   2.5e12],
                #'loss_Ox'       :['loss_Ox'                       ,'Ox loss rate'                                                  ,0,   2.5e12]
               }                                   
@@ -172,7 +185,7 @@ fields_dict = {
             load_regiondata(country_statefile,states=True) #get countries for points
 
 #define file
-nc = NetCDFFile('/geos/u28/scripts/GEOS-Chem_columns/NewBC_x1_all__%s-%s.nc'%(start_date.strftime('%Y%m%d'),end_date.strftime('%Y%m%d')))
+nc = NetCDFFile('/geos/u28/scripts/GEOS-Chem_columns/NewBC_x1_monthly__%s-%s.nc'%(start_date.strftime('%Y%m%d'),end_date.strftime('%Y%m%d')))
 #nc = NetCDFFile('/geos/u28/scripts/GEOS-Chem_columns/PL_goodsat_x1_new_2D_%s-%s.nc'%(start_date.strftime('%Y%m%d'),end_date.strftime('%Y%m%d')))
 
 
@@ -206,10 +219,13 @@ for i in range(len(out_india_mask)):
         (this_country,this_state) = region_matcher_fast(csv_lat,csv_lon,csv_country,csv_state,
                            [this_lat],[this_lon],region="india")
         #print this_lat,this_lon,this_country
-        if this_country in ["India","Bangladesh"]:
-            out_india_mask[i][j] = False
+        if do_country_mask:
+            if this_country in ["India","Bangladesh"]:
+                out_india_mask[i][j] = False
+            else:
+                out_india_mask[i][j] = True
         else:
-            out_india_mask[i][j] = True
+            out_india_mask[i][j] = False
 top_mask = out_india_mask
 for t in range(len(season_list)):   
     zero_or_nan_mask = np.logical_or(np.isnan(plot_var[t][:]),plot_var[t][:] == 0.)   
@@ -272,11 +288,7 @@ for t in range(len(season_list)):
         
         print "%s : average : %g" %(field_full,np.nanmean(data_m.flatten()))
         
-        if do_scatter:
-            for i in range(len(out_india_mask)):
-                for j in range(len(out_india_mask[0])):
-                    if not data_m.recordmask[i][j]:
-                        print data_m[i][j]
+        
         
         if do_plot: 
             #basic draw map stuff
@@ -338,6 +350,44 @@ for t in range(len(season_list)):
         if field_QN == "loss_Ox":
             loss_Ox_data = data
             loss_Ox_mask = mask    
+    
+    if do_scatter:
+        
+        for xfield_QN, yfield_QN in pairwise(fields_dict):
+        
+            [xfield_NC,xfield_full,xlower,xupper] = fields_dict[xfield_QN]
+            [yfield_NC,yfield_full,ylower,yupper] = fields_dict[yfield_QN]
+                
+            xaxis_var = nc.variables[xfield_NC]
+            yaxis_var = nc.variables[yfield_NC]        
+            xdata = np.array(xaxis_var[t][:]).flatten()
+            ydata = np.array(yaxis_var[t][:]).flatten()
+            
+            fig = plt.figure(figsize=(8,8))
+            plt.scatter(xdata,ydata,alpha=0.2)
+            plt.title("%s"%(date_text),fontsize=14)
+            plt.xlabel("%s / %s" %(xfield_full,xaxis_var.units))
+            plt.ylabel("%s / %s" %(yfield_full,yaxis_var.units))
+            plt.axis([xlower, xupper, ylower, yupper])
+            plt.grid(True)
+            
+            
+            #for stats, strip out wherever either is nan
+            xdata_clean = xdata[np.logical_not(np.isnan(np.multiply(xdata,ydata)))]
+            ydata_clean = ydata[np.logical_not(np.isnan(np.multiply(xdata,ydata)))]
+            
+            slope, intercept, r_value, p_value, std_err = stats.linregress(xdata_clean, ydata_clean)
+            
+            print "m = %g , c = %g , rsq = %g "%(slope,intercept,r_value*r_value)
+            
+                        
+            plt.plot([xlower,xupper], [intercept + slope * xlower,intercept + slope * xupper], 'r-')
+            
+            plt.annotate('y = %.2f x + %.2E , r2 = %.2f'%(slope,intercept,r_value*r_value), (0,0), (0, -45), xycoords='axes fraction', textcoords='offset points', va='top')
+            
+            plt.savefig("%s_Scatter_X-%s_Y-%s_%s"%(save_pre,xfield_QN,yfield_QN,date_text))
+            plt.close()
+    
     
     if do_prodloss: #prodloss
         #=====do net Ox===========

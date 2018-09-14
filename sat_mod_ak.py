@@ -246,6 +246,11 @@ def make_dict(option):
 
     if option.do_gsc: #OMI ozone
         this_dict["GSC"]      = val_record("OMI O3",              "molec cm-2")
+        if option.do_3D == False:
+            this_dict["GSC_wBC"]      = val_record("OMI O3 with bias correction","molec cm-2")
+            this_dict["BC"]      =      val_record("bias correction","molec cm-2")
+            this_dict["GSC_wBC_old"]      = val_record("OMI O3 with OLD bias correction","molec cm-2")
+            this_dict["BC_old"]      =      val_record("OLD bias correction","molec cm-2")
     
     if option.do_MACC: #MACC ozone
         this_dict["MACC"]     = val_record("MACC O3",             "molec cm-2")
@@ -562,11 +567,7 @@ def apply_AKs_grid(o3,AKs,GC_pressures,toa=0.01,debug=False):
     
     #generate output grid
     output = np.zeros((LR_levs-1,mod_extent_i,mod_extent_j))
-    #set to all nans
-    for l in range(len(output)):
-        for i in range(len(output[0])):
-            for j in range(len(output[0][0])):
-                output[l][i][j] = np.nan
+
     
     #cycle through points
     for i in range(mod_extent_i):
@@ -627,6 +628,15 @@ def apply_AKs_grid(o3,AKs,GC_pressures,toa=0.01,debug=False):
                 print("---LR pressure levels--------------")
                 print(LR_p_profile)
                 print("-----------------------------------")
+    
+    #set missing to nans
+    for l in range(len(output)):
+        for i in range(len(output[0])):
+            for j in range(len(output[0][0])):
+                #if l==0:
+                #    print "Output l = %i, i = %i, j = %i is %g" %(l,i,j,output[l][i][j]) 
+                if output[l][i][j] == 0.:                    
+                    output[l][i][j] = np.nan
                    
     return output
                 
@@ -689,7 +699,7 @@ def bias_correct(array,lat,date,BCs="new"):
          else:
             interp = scipy.interpolate.interp1d(latbands,this_month_corrs)
             thiscorr = interp(lat[i])
-         print "Correction for lat = %g, month = %i  -> subtract %g"%(lat[i]+1,corr_m,thiscorr)
+         #print "Correction for lat = %g, month = %i  -> subtract %g"%(lat[i]+1,corr_m,thiscorr)
          #print array[i]
          out_array[i] = np.subtract(array[i],thiscorr)
          #print out_array[i]
@@ -782,6 +792,21 @@ while this_date <= option.end_date:
         if option.do_geos_o3_wAK: #averaging kernals
             accum_dict = read_sat_to_dict(accum_dict,"AK",sat_data_dict,this_date,all_lat,all_lon,option.domain)
         
+        if not option.do_3D:
+            accum_dict_num = len(accum_dict["GSC"].data)
+            good_lats = all_lat[np.array([all_lat[k] <= option.domain[1] and all_lat[k] >= option.domain[0] for k in range(len(all_lat))])]
+            print good_lats
+            
+            accum_dict["GSC_wBC"].datelist.append(accum_dict["GSC"].datelist[accum_dict_num-1]) #date
+            accum_dict["GSC_wBC_old"].datelist.append(accum_dict["GSC"].datelist[accum_dict_num-1]) #date                   
+            accum_dict["BC"].datelist.append(accum_dict["GSC"].datelist[accum_dict_num-1])      #date
+            accum_dict["BC_old"].datelist.append(accum_dict["GSC"].datelist[accum_dict_num-1])      #date
+            
+            accum_dict["GSC_wBC"].data.append(bias_correct(accum_dict["GSC"].data[accum_dict_num-1],good_lats,accum_dict["GSC_wBC"].datelist[accum_dict_num-1])) #bias correction for this data
+            accum_dict["GSC_wBC_old"].data.append(bias_correct(accum_dict["GSC"].data[accum_dict_num-1],good_lats,accum_dict["GSC_wBC_old"].datelist[accum_dict_num-1],BCs="old")) #bias correction for this data USING OLD VALUES
+            accum_dict["BC"].data.append(np.subtract(accum_dict["GSC_wBC"].data[accum_dict_num-1],accum_dict["GSC"].data[accum_dict_num-1]))
+            accum_dict["BC_old"].data.append(np.subtract(accum_dict["GSC_wBC_old"].data[accum_dict_num-1],accum_dict["GSC"].data[accum_dict_num-1]))
+                
         yesterday_sat_data_dict = sat_data_dict
         #print accum_dict["GSC"].data
     
@@ -1001,14 +1026,14 @@ while this_date <= option.end_date:
                      
             result_dict[key].datelist.append(min(accum_dict[key].datelist)) #set date to first date recorded for this variable
             
-            if option.mask_as_all:
-                data_masked = np.ma.array(accum_dict[key].data, mask = np.logical_or(np.isnan(accum_dict[key].data),np.isnan(accum_dict["GSC"].data)))
-            else:
-                data_masked = np.ma.array(accum_dict[key].data, mask = np.isnan(accum_dict[key].data))
+            #if option.mask_as_all:
+            #    data_masked = np.ma.array(accum_dict[key].data, mask = np.logical_or(np.isnan(accum_dict[key].data),np.isnan(accum_dict["GSC"].data)))
+            #else:
+            #    data_masked = np.ma.array(accum_dict[key].data, mask = np.isnan(accum_dict[key].data))
             
-            time_av_result = np.ma.average(data_masked,axis=0) #average over time dimension
-            
-            time_av_result = np.where(time_av_result==0.,np.nan,time_av_result) #exact zeros are null points
+            #time_av_result = np.ma.average(data_masked,axis=0) #average over time dimension
+            time_av_result = np.average(accum_dict[key].data,axis=0) #average over time dimension, strict nan corruption
+            #time_av_result = np.where(time_av_result==0.,np.nan,time_av_result) #exact zeros are null points
             
             print(key)
             print(time_av_result.shape)
@@ -1044,17 +1069,9 @@ if option.do_geos_o3_wAK: #add in priors
 
 if option.do_gsc and not option.do_3D: #do bias correction
     print("doing bias correction")
-    result_dict["GSC_wbiascorr"] = val_record("OMI O3 with bias correction","molec cm-2")
-    result_dict["GSC_wbiascorr"].datelist = result_dict["GSC"].datelist
-    unbiased_data = np.zeros_like(result_dict["GSC"].data)
-    for t in range(len(result_dict["GSC_wbiascorr"].datelist)):
-        unbiased_data[t] = bias_correct(result_dict["GSC"].data[t],lat_for_nc,result_dict["GSC_wbiascorr"].datelist[t])    
-    #print result_dict["GSC"].data
-    result_dict["GSC_wbiascorr"].data = unbiased_data
-    
-    result_dict["biascorr"] = val_record("bias correction","molec cm-2")
-    result_dict["biascorr"].datelist = result_dict["GSC"].datelist    
-    result_dict["biascorr"].data = np.subtract(result_dict["GSC_wbiascorr"].data,result_dict["GSC"].data)
+
+    #fill here??
+
     
     #print result_dict["GSC_wbiascorr"].data
     
