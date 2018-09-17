@@ -96,8 +96,8 @@ def region_matcher_fast(cs_lat,cs_lon,cs_country,cs_state,lat,lon,states=True,re
             if states:
                 state_out.append(cs_state[int(ind[line])])
         except IndexError:
-            print "line = %i" %line
-            print "ind[line] = %g" %ind[line]
+            print("line = %i" %line)
+            print("ind[line] = %g" %ind[line])
             raise ValueError
     
     if single:

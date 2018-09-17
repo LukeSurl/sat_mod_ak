@@ -56,7 +56,7 @@ class opts:
 
 def get_options():
 
-    print "Reading options from options_sat_mod_ak.py"
+    print("Reading options from options_sat_mod_ak.py")
     #==Date and time==
 
     start_date = dt(2014, 1,   1) #first date          :: (YYYY,MM,DD)
@@ -215,7 +215,7 @@ def check_options_valid(options):
      
     #Satellite data
     #Are we using satellite data?
-    use_sat_data = do_gsc or do_MACC or do_MACC_wAK or do_prior or do_o3_wAK
+    use_sat_data = do_gsc or do_MACC or do_MACC_wAK or do_prior or do_geos_o3_wAK
 
     if use_sat_data: #following checks only relevant *if* satellite data is used
 

@@ -413,9 +413,9 @@ def pressure_cutoff(amount,pressure,cutoff=450.,commentary="",do_avg=False):
             #for each i,j point, get the sum up to this level (linearlt interpolating using log pressures)
             output[i,j] = float(log_interp_sum_to_level(pres_col,amount_col,cutoff))
             if commentary == "full" and i == 20 and j == 20:
-                print pres_col
-                print amount_col
-                print output[i,j]
+                print(pres_col)
+                print(amount_col)
+                print(output[i,j])
     
     return(output)
 
@@ -795,7 +795,7 @@ while this_date <= option.end_date:
         if not option.do_3D:
             accum_dict_num = len(accum_dict["GSC"].data)
             good_lats = all_lat[np.array([all_lat[k] <= option.domain[1] and all_lat[k] >= option.domain[0] for k in range(len(all_lat))])]
-            print good_lats
+            print(good_lats)
             
             accum_dict["GSC_wBC"].datelist.append(accum_dict["GSC"].datelist[accum_dict_num-1]) #date
             accum_dict["GSC_wBC_old"].datelist.append(accum_dict["GSC"].datelist[accum_dict_num-1]) #date                   
@@ -915,7 +915,7 @@ while this_date <= option.end_date:
             oxprod = np.concatenate((oxprod,nine_0),axis=0)
             oxloss = np.concatenate((oxloss,nine_0),axis=0)
             
-            print oxprod.shape
+            print(oxprod.shape)
             
             #let's get things into sensible units
             #Prod - starts in kg/m3/s
@@ -1135,7 +1135,7 @@ for key in result_dict:
         nc_var[:,:,:] = result_dict[key].data
         
         if key == "lossOx":
-            print result_dict[key].data        
+            print(result_dict[key].data)        
         
 
 
