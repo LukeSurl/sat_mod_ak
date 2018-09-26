@@ -126,44 +126,48 @@ domain = [2.,38.,65.,100]
 
 do_plot = True
 
-do_scatter = False
+do_scatter = True
 
 do_prodloss = False
 
 cycle_type = "monthly"
-start_date = dt(2014,1,01)
+start_date = dt(2014,2,1)
 end_date   = dt(2014,12,30)
 
-save_pre = '/geos/u28/scripts/GEOS-Chem_columns/new_BC_month/X1_newBC_month'
+save_pre = '/geos/u28/scripts/GEOS-Chem_columns/for_GM/X1_newBC_'
 
-if cycle_type == "daily":
+if cycle_type in ["daily","day","d"]:
 
     season_list = [start_date + td(days=i) for i in range((end_date-start_date).days+1)]
     #print season_list
     #sys.exit()
-elif cycle_type == "monthly":
+elif cycle_type in ["monthly","month","m"]:
 
     season_list = [start_date + td(days=i) for i in range((end_date-start_date).days+1) if (start_date + td(days=i)).day == 1]
-elif cycle_type == "year":
+elif cycle_type in ["year","y","all","a"]:
     season_list = ["year"]
 
 max_o3 = 1.0e18
 
-do_country_mask = False
+do_country_mask = True
 country_statefile = "country_state.csv"
 
+#diffs = [["GC_O3_wAK_wpri",'sat_o3_wBC']]
+diffs = []
+#ratios = [['GC_O3_GL',"GC_O3"]]
+ratios = []
 
              #{quickname: [NC_fieldname, full_name,lower_plotbound,upper_plot_bound]
 fields_dict = {
                #'GC_O3_wAK'     :['GC_O3 with OMI AKs'            ,'GEOS-Chem, with OMI AKs, tropospheric ozone column (no prior)' ,0,   max_o3],
                'GC_O3_wAK_wpri':['GEOS O3 with OMI AKs inc prior','GEOS-Chem, with OMI AKs, tropspheric ozone column (with prior)',0.0e18,   max_o3],
                #'GC_O3_wAK_SUBpri':['GEOS O3 with OMI AKs SUB prior','GEOS-Chem, with OMI AKs, tropspheric ozone column (with prior subtracted)',0,   max_o3],
-               'MACC_O3'       :['MACC O3'                       ,'MACC tropospheric ozone column'                                ,0,   max_o3],
+               #'MACC_O3'       :['MACC O3'                       ,'MACC tropospheric ozone column'                                ,0,   max_o3],
                #'MACC_O3_wAK'   :['MACC O3 with OMI AKs'          ,'MACC, with OMI AKs, tropospheric ozone column'                 ,0,   max_o3],
-               #'prior'         :['prior'                         ,'Prior tropospheric O3 column'                                  ,0,   max_o3],
-               'sat_o3'        :['OMI O3'                        ,'OMI tropospheric ozone column'                                 ,0,   max_o3],
-               'sat_o3_wBC'    :['OMI O3 with bias correction'   ,'OMI tropospheric ozone column, with bias correction'           ,0.0e18,   max_o3],
-               'sat_o3_wBC_old'    :['OMI O3 with OLD bias correction'   ,'OMI tropospheric ozone column, with OLD bias correction'           ,0.0e18,   max_o3],
+               #'prior'         :['prior'                         ,'Prior tropospheric O3 column'                                  ,-0.5e18,   0.5e18],
+               #'sat_o3'        :['OMI O3'                        ,'OMI tropospheric ozone column'                                 ,0,   max_o3],
+               #'sat_o3_wBC'    :['OMI O3 with bias correction'   ,'OMI tropospheric ozone column, with bias correction'           ,0.0e18,   max_o3],
+               #'sat_o3_wBC_old'    :['OMI O3 with OLD bias correction'   ,'OMI tropospheric ozone column, with OLD bias correction'           ,0.0e18,   max_o3],
                #'GC_CO'         :['GC_CO'                         ,'GEOS-Chem tropospheric CO column'                              ,0,   1.5e18],
                #'GC_CO_GL'      :['GC_CO_GL'                      ,'GEOS-Chem ground-level CO mixing ratio'                        ,0,   4e-7  ],
                #'GC_NO'         :['GC_NO'                         ,'GEOS-Chem tropospheric NO column'                              ,0,   1e16  ],
@@ -174,9 +178,9 @@ fields_dict = {
                #'GC_NOx_GL'     :['GC_NOx_GL'                     ,'GEOS-Chem ground-level NOx mixing ratio'                       ,0,   5e-9  ],
                #'GC_CH2O'       :['GC_CH2O'                       ,'GEOS-Chem tropospheric HCHO column'                            ,0,   1.5e16],
                #'GC_CH2O_GL'    :['GC_CH2O_GL'                    ,'GEOS-Chem ground-level HCHO mixing ratio'                      ,0,   2.5e-9],
-               'GC_O3'         :['GC_O3'                         ,'GEOS-Chem tropospheric O3 column'                              ,0.0e18,   max_o3],
-               #'GC_O3_GL'      :['GC_O3_GL'                      ,'GEOS-Chem ground-level O3 mixing ratio'                        ,30.e-9,   60.e-9],
-               'bias_corr'      :['bias correction'               ,'Bias correction applied'                                       ,0,   3e17]
+               #'GC_O3'         :['GC_O3'                         ,'GEOS-Chem tropospheric O3 column'                              ,0.0e18,   max_o3],
+               'GC_O3_GL'      :['GC_O3_GL'                      ,'GEOS-Chem ground-level O3 mixing ratio'                        ,0.e-9,   100.e-9]
+               #'bias_corr'      :['bias correction'               ,'Bias correction applied'                                       ,0,   3e17]
                #'prod_Ox'       :['prod_Ox'                       ,'Ox production rate'                                            ,0,   2.5e12],
                #'loss_Ox'       :['loss_Ox'                       ,'Ox loss rate'                                                  ,0,   2.5e12]
               }                                   
@@ -234,7 +238,7 @@ for t in range(len(season_list)):
 
               
 for t in range(len(season_list)):
-    print t
+    print(t)
     
     #text for filename and headers        
     if season_list[t] == "JFM":
@@ -245,17 +249,17 @@ for t in range(len(season_list)):
         date_text = '20140701-20140930'
     elif season_list[t] == "OND":
         date_text = '20141001-20141230'
-    elif season_list[t] == "year":
+    elif season_list[t] in ["year","y","all","a"]:
         date_text = start_date.strftime('%Y%m%d')+"-"+end_date.strftime('%Y%m%d')
     else: #month or daily cycle
-        if cycle_type == "daily":
+        if cycle_type in ["daily","day","d"]:
             date_text = season_list[t].strftime('%Y%m%d')
-        elif cycle_type == "monthly":
+        elif cycle_type in ["monthly","month","m"]:
             date_text = season_list[t].strftime('%Y%m')
         else: #we shouldn't get here
             raise IOError("failure to set date_text")
 
-    print date_text
+    print(date_text)
        
     #Now, loop through fields:    
     for field_QN in fields_dict:
@@ -286,7 +290,7 @@ for t in range(len(season_list)):
         #mask
         data_m = np.ma.masked_where(top_mask,data)
         
-        print "%s : average : %g" %(field_full,np.nanmean(data_m.flatten()))
+        print("%s : average : %g" %(field_full,np.nanmean(data_m.flatten())))
         
         
         
@@ -313,7 +317,7 @@ for t in range(len(season_list)):
             lons, lats = m.makegrid(nx, ny) # get lat/lons of ny by nx evenly space grid.
             x, y = m(lons, lats) # compute map proj coordinates.
             
-            #colour bar        
+            #colour bar        YlGn
             #(lower,upper) = (np.nanmin(np.array(data).flatten()),np.nanmax(np.array(data).flatten()))
             step  = (upper-lower)/20.
             
@@ -327,6 +331,8 @@ for t in range(len(season_list)):
                 cmap = plt.cm.BuPu
             elif field_QN == "loss_Ox":
                 cmap = plt.cm.YlGn
+            elif field_QN == "prior":
+                cmap = plt.cm.coolwarm
             elif field_QN.endswith("_GL"):
                 cmap = plt.cm.inferno
             else:
@@ -378,7 +384,7 @@ for t in range(len(season_list)):
             
             slope, intercept, r_value, p_value, std_err = stats.linregress(xdata_clean, ydata_clean)
             
-            print "m = %g , c = %g , rsq = %g "%(slope,intercept,r_value*r_value)
+            print("m = %g , c = %g , rsq = %g "%(slope,intercept,r_value*r_value))
             
                         
             plt.plot([xlower,xupper], [intercept + slope * xlower,intercept + slope * xupper], 'r-')
@@ -441,6 +447,142 @@ for t in range(len(season_list)):
         
         plt.close()
     
+    if len(diffs) != 0:
+        for [field_QN1,field_QN2] in diffs:
+            [field_NC1,field_full1,lower1,upper1] = fields_dict[field_QN1]
+            [field_NC2,field_full2,lower2,upper2] = fields_dict[field_QN2]
+            
+            plot_var1 = nc.variables[field_NC1]
+            plot_var2 = nc.variables[field_NC2]   
+            delta_data = np.subtract(np.array(plot_var1[t][:]),np.array(plot_var2[t][:]))
+
+            
+            #mask with same data for now
+            mask = plot_var1[t][:]
+            units = plot_var1.units
+            #mask
+            data_m = np.ma.masked_where(top_mask,delta_data)
+            
+            
+#basic draw map stuff
+            fig = plt.figure(figsize=(8,8))
+            ax = fig.add_axes([0.1,0.1,0.8,0.8])
+            # create Mercator Projection Basemap instance.
+
+            m = Basemap(projection='merc',llcrnrlat=minlat-1.75,urcrnrlat=maxlat-1.75,\
+                        llcrnrlon=minlon-0.75,urcrnrlon=maxlon-0.75,lat_ts=20,resolution='i')
+
+            # draw coastlines, state and country boundaries, edge of map.
+            m.drawcoastlines()
+            #m.drawstates()
+            m.drawcountries()
+            # draw parallels.
+            parallels = np.arange(-90.,90,5.)
+            m.drawparallels(parallels,labels=[1,0,0,0],fontsize=16)
+            # draw meridians
+            meridians = np.arange(-180.,180.,5.)
+            m.drawmeridians(meridians,labels=[0,0,0,1],fontsize=16)
+            ny = data.shape[0]; nx = data.shape[1]
+            lons, lats = m.makegrid(nx, ny) # get lat/lons of ny by nx evenly space grid.
+            x, y = m(lons, lats) # compute map proj coordinates.
+            
+            upper = +5e17
+            lower = -5e17
+            #colour bar        
+            #(lower,upper) = (np.nanmin(np.array(data).flatten()),np.nanmax(np.array(data).flatten()))
+            step  = (upper-lower)/20.
+            
+            clevs = list(frange(lower,upper,step))
+            cbar_text = units       
+            
+            
+            #main fig
+            #colormap
+            cmap = plt.cm.bwr
+            
+            #plot it
+            cs = m.pcolormesh(x,y,data_m,vmin=min(clevs),vmax=max(clevs),cmap=cmap)
+            cbar = m.colorbar(cs,location='bottom',pad="5%")
+            cbar.set_label("$\Delta$ %s" %cbar_text,fontsize=10)
+            
+            #title
+            plt.title("%s \n MINUS %s - %s"%(field_full1,field_full2,date_text),fontsize=14)
+            
+            #save
+            plt.savefig("%s_ADJ_diff_%s_%s_%s"%(save_pre,field_QN1,field_QN2,date_text))
+            
+            plt.close()            
+            
+            print("%s minus %s : average : %g" %(field_full1,field_full2,np.nanmean(data_m.flatten())))
+            
+            
+    if len(ratios) != 0:
+        for [field_QN1,field_QN2] in ratios:
+            [field_NC1,field_full1,lower1,upper1] = fields_dict[field_QN1]
+            [field_NC2,field_full2,lower2,upper2] = fields_dict[field_QN2]
+            
+            plot_var1 = nc.variables[field_NC1]
+            plot_var2 = nc.variables[field_NC2]   
+            delta_data = np.divide(np.array(plot_var1[t][:]),np.array(plot_var2[t][:]))
+
+            
+            #mask with same data for now
+            mask = plot_var1[t][:]
+            units = plot_var1.units
+            #mask
+            data_m = np.ma.masked_where(top_mask,delta_data)
+            
+            
+#basic draw map stuff
+            fig = plt.figure(figsize=(8,8))
+            ax = fig.add_axes([0.1,0.1,0.8,0.8])
+            # create Mercator Projection Basemap instance.
+
+            m = Basemap(projection='merc',llcrnrlat=minlat-1.75,urcrnrlat=maxlat-1.75,\
+                        llcrnrlon=minlon-0.75,urcrnrlon=maxlon-0.75,lat_ts=20,resolution='i')
+
+            # draw coastlines, state and country boundaries, edge of map.
+            m.drawcoastlines()
+            #m.drawstates()
+            m.drawcountries()
+            # draw parallels.
+            parallels = np.arange(-90.,90,5.)
+            m.drawparallels(parallels,labels=[1,0,0,0],fontsize=16)
+            # draw meridians
+            meridians = np.arange(-180.,180.,5.)
+            m.drawmeridians(meridians,labels=[0,0,0,1],fontsize=16)
+            ny = data.shape[0]; nx = data.shape[1]
+            lons, lats = m.makegrid(nx, ny) # get lat/lons of ny by nx evenly space grid.
+            x, y = m(lons, lats) # compute map proj coordinates.
+            
+            upper = +0.2e-24
+            lower = 0
+            #colour bar        
+            #(lower,upper) = (np.nanmin(np.array(data).flatten()),np.nanmax(np.array(data).flatten()))
+            step  = (upper-lower)/20.
+            
+            clevs = list(frange(lower,upper,step))
+            #cbar_text = units       
+            
+            
+            #main fig
+            #colormap
+            cmap = plt.cm.magma
+            
+            #plot it
+            cs = m.pcolormesh(x,y,data_m,vmin=min(clevs),vmax=max(clevs),cmap=cmap)
+            cbar = m.colorbar(cs,location='bottom',pad="5%")
+            #cbar.set_label("$\Delta$ %s" %cbar_text,fontsize=10)
+            
+            #title
+            plt.title("%s \n DIVIDED BY %s - %s"%(field_full1,field_full2,date_text),fontsize=14)
+            
+            #save
+            plt.savefig("%s_ratio_%s_%s_%s"%(save_pre,field_QN1,field_QN2,date_text))
+            
+            plt.close()            
+            
+            print("%s RATIO %s : average : %g" %(field_full1,field_full2,np.nanmean(data_m.flatten())))            
     #===================
     
     #clock forward

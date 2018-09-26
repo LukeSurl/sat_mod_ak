@@ -796,6 +796,8 @@ while this_date <= option.end_date:
             accum_dict_num = len(accum_dict["GSC"].data)
             good_lats = all_lat[np.array([all_lat[k] <= option.domain[1] and all_lat[k] >= option.domain[0] for k in range(len(all_lat))])]
             print(good_lats)
+            good_lons = all_lon[np.array([all_lon[k] <= option.domain[2] and all_lon[k] >= option.domain[3] for k in range(len(all_lon))])]
+            print(good_lons)
             
             accum_dict["GSC_wBC"].datelist.append(accum_dict["GSC"].datelist[accum_dict_num-1]) #date
             accum_dict["GSC_wBC_old"].datelist.append(accum_dict["GSC"].datelist[accum_dict_num-1]) #date                   
@@ -1054,8 +1056,8 @@ elif use_mod_data:
     lat_for_nc = mod_lat
     lon_for_nc = mod_lon
 else:
-    lat_for_nc = sat_lat
-    lat_for_nc = sat_lon
+    lat_for_nc = good_lats
+    lon_for_nc = good_lons
 
 
 if option.do_geos_o3_wAK: #add in priors

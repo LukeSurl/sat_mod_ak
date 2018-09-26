@@ -59,8 +59,8 @@ def get_options():
     print("Reading options from options_sat_mod_ak.py")
     #==Date and time==
 
-    start_date = dt(2014, 1,   1) #first date          :: (YYYY,MM,DD)
-    end_date   = dt(2014, 12, 30) #end date (inclusive):: (YYYY,MM,DD)
+    start_date = dt(2004,10,   1) #first date          :: (YYYY,MM,DD)
+    end_date   = dt(2018, 3,  31) #end date (inclusive):: (YYYY,MM,DD)
 
     #==Output options==
     cycle_type = "month"         #Time resolution of output. Options are:
@@ -87,13 +87,13 @@ def get_options():
     
     #list species to read-in, with their GEOS-Chem names.
     #make list empty to do no model 
-    geos_species = [
-                    "O3",
-                    "NO",
-                    "NO2",
-                    "CO",
-                    "CH2O"
-                    ]                 
+    geos_species = []
+                   # "O3",
+                   # "NO",
+                   # "NO2",
+                   # "CO",
+                   # "CH2O"
+                   # ]                 
     
     
     #production-loss
@@ -101,8 +101,8 @@ def get_options():
     prodloss_path = '/geos/d21/lsurl/geos11_runs/geosfp_025x03125_tropchem_ch/rate.YYYYMMDD'
     
     #special species
-    do_geos_nox = True           #Output "pure" GEOS-Chem tropospheric NOx (sum of NO and NO2)
-    do_geos_o3_wAK = True       #Apply satellite AKs to GEOS-Chem O3                
+    do_geos_nox = False           #Output "pure" GEOS-Chem tropospheric NOx (sum of NO and NO2)
+    do_geos_o3_wAK = False       #Apply satellite AKs to GEOS-Chem O3                
     
     #do 3D - whether to return 3D fields of model output and satellite retrieval
     do_3D = False
@@ -115,8 +115,9 @@ def get_options():
         #Path of MONTHLY satellite data
         #sat_data_path = '/geos/d21/downloaded_sat_data/ozone_omi_fv0214/monthly_lag-90_90_2.5_log-180_180_2.5/YYYY/o3p_bin_vs_model_YYYYMMXX_MACC_mcef0.2_sza80_mcost120_mcb1_lzr_omfra_ak.str' #OLD
         #sat_data_path = '/geos/d21/downloaded_sat_data/ozone_omi_fv0214/monthly_lag-10_40_0.5_log65_130_0.5/YYYY/o3p_bvm_YYYYMMXX_omi_MACC_mcef0.2_sza80_mcost120_lzr_ak.str' #NEW
-        sat_data_path = '/geos/d21/downloaded_sat_data/ozone_omi_fv0300/monthly_lag-10_40_0.75_log65_130_0.75/YYYY/o3p_bvm_YYYYMMXX_omi_MACC_mcef0.2_sza80_mcost120_lzr_omfra2_ak_xtcor1.str' #good, xtcor1
+        #sat_data_path = '/geos/d21/downloaded_sat_data/ozone_omi_fv0300/monthly_lag-10_40_0.75_log65_130_0.75/YYYY/o3p_bvm_YYYYMMXX_omi_MACC_mcef0.2_sza80_mcost120_lzr_omfra2_ak_xtcor1.str' #good, xtcor1
         #sat_data_path = '/geos/d21/downloaded_sat_data/ozone_omi_fv0300/monthly_lag-10_40_0.75_log65_130_0.75/YYYY/o3p_bvm_YYYYMMXX_omi_MACC_mcef0.2_sza80_mcost120_lzr_omfra2_ak_xtcor2.str' #good, xtcor2
+        sat_data_path = '/geos/d21/downloaded_sat_data/ozone_omi_lv2fv0300_lv3fv01.xc01/monthly_lag-10_40_0.75_log65_130_0.75/YYYY/o3p_bvm_YYYYMMXX_omi_MACC_l2fv0300_l3fv0100_mcef0.2_sza80_mcost120_lzr_omfra2_xtxscp_ak_xtcor1.str' #newnew
     elif sat_time_res =="d":
         #Path of DAILY satellite data
         #sat_data_path = '/geos/d21/downloaded_sat_data/ozone_omi_fv0214/daily_lag-90_90_2.5_log-180_180_2.5/YYYYMM/o3p_bin_vs_model_YYYYMMDD_MACC_mcef0.2_sza80_mcost120_mcb1_lzr_omfra_ak.str' #OLD
@@ -124,7 +125,7 @@ def get_options():
     
     #==save location, and file prefic==
     
-    sav_pre = "/geos/u28/scripts/GEOS-Chem_columns/NewBC_x1_monthly_" #add nc file prefix. Add path if not wanting to save in working directory. The rest of the filename will be the date span (from start_date to end_date)
+    sav_pre = "/geos/u28/scripts/GEOS-Chem_columns/sat_only_monthly_" #add nc file prefix. Add path if not wanting to save in working directory. The rest of the filename will be the date span (from start_date to end_date)
     
                                 
     return(
@@ -280,5 +281,4 @@ def check_options_valid(options):
     if major_error != 0:
         raise IOError("At least one fatal error in input options")        
              
-    
     
